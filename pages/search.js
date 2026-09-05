@@ -1,5 +1,71 @@
-import { useState, useEffect } from 'react'
-import Logo from '../components/Logo'
-const FEES={fast:{delivery:40,handling:10,surge:15,small:20},normal:{delivery:50,handling:5,surge:0,small:0}}
-function calc(mrp,cat,platform){const f=FEES[cat]||FEES.normal;let extra=f.delivery+f.handling;if(platform==='blinkit')extra+=f.surge;if(mrp<150)extra+=f.small;return{finalPrice:mrp+extra,extra,breakup:f}}
-export default function Search(){const [data,setData]=useState(null);const [sort,setSort]=useState('low');useEffect(()=>{const p=new URLSearchParams(window.location.search);const q=p.get('q')||'';const mrp=parseInt(p.get('mrp')||'30');const cat=p.get('cat')||'fast';const platforms=['blinkit','zepto','instamart'];const items=platforms.map(pl=>{const r=calc(mrp,cat,pl);return{platform:pl,mrp,...r,q}});setData({q,mrp,cat,items})},[]);if(!data)return<div style={{padding:20}}>Loading real prices...</div>;const sorted=[...data.items].sort((a,b)=>sort==='low'?a.finalPrice-b.finalPrice:b.finalPrice-a.finalPrice);const cheapest=sorted[0];return(<div style={{fontFamily:'system-ui',padding:'15px',maxWidth:'700px',margin:'0 auto'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><Logo size={32}/><a href="/" style={{textDecoration:'none',color:'black',fontWeight:'bold'}}>← Back</a></div><h2 style={{marginTop:'15px'}}>Results for "{data.q}" - REAL Dam</h2><p style={{color:'#64748b',fontSize:'13px'}}>MRP ₹{data.mrp} | Showing FINAL price with all fees</p><div style={{display:'flex',gap:'10px',margin:'15px 0'}}><button onClick={()=>setSort('low')} style={{padding:'8px 12px',borderRadius:'20px',border:'1px solid black',background:sort==='low'?'black':'white',color:sort==='low'?'white':'black'}}>Low to High</button><button onClick={()=>setSort('high')} style={{padding:'8px 12px',borderRadius:'20px',border:'1px solid black',background:sort==='high'?'black':'white',color:sort==='high'?'white':'black'}}>High to Low</button></div>{sorted.map((it,idx)=>(<div key={it.platform} style={{border:idx===0&&sort==='low'?'2px solid #16a34a':'1px solid #e2e8f0',borderRadius:'16px',padding:'15px',marginBottom:'12px',background:idx===0&&sort==='low'?'#f0fdf4':'white'}}><div style={{display:'flex',justifyContent:'space-between'}}><b style={{textTransform:'capitalize',fontSize:'18px'}}>{it.platform} {idx===0&&sort==='low'&&'🏆 Cheapest'}</b><b style={{fontSize:'20px'}}>₹{it.finalPrice}</b></div><div style={{fontSize:'12px',color:'#64748b',marginTop:'6px'}}>MRP ₹{it.mrp} + Delivery ₹{it.breakup.delivery} + Handling ₹{it.breakup.handling} {it.platform==='blinkit'?`+ Surge ₹${it.breakup.surge}`:''} {it.mrp<150?`+ Small Cart ₹${it.breakup.small}`:''} = <b>₹{it.finalPrice} Final</b></div><div style={{marginTop:'10px',fontSize:'12px',background:'#f8fafc',padding:'8px',borderRadius:'8px'}}>You saw ₹{it.mrp} but pay <b>₹{it.finalPrice}</b>. Extra ₹{it.extra} hidden fees!</div></div>))}<div style={{marginTop:'20px',padding:'15px',background:'black',color:'white',borderRadius:'12px',textAlign:'center'}}><div>Cheapest is <b style={{textTransform:'capitalize'}}>{cheapest.platform}</b> at <b>₹{cheapest.finalPrice}</b></div></div></div>)}
+import { useRouter } from 'next/router';
+import { useState } from 'react';
+
+const PRODUCTS = {
+  "milk": { name: "Amul Milk 500ml", mrp: 30 },
+  "bread": { name: "Britannia Bread", mrp: 45 },
+  "iphone 16": { name: "Apple iPhone 16 128GB", mrp: 79900 },
+  "iphone": { name: "Apple iPhone 16 128GB", mrp: 79900 },
+  "atta": { name: "Aashirvaad Atta 5kg", mrp: 280 },
+  "dal": { name: "Toor Dal 1kg", mrp: 180 },
+  "rice": { name: "Basmati Rice 1kg", mrp: 120 },
+  "oil": { name: "Fortune Oil 1L", mrp: 150 },
+};
+
+export default function Search() {
+  const router = useRouter();
+  const [sort, setSort] = useState('low');
+  const q = (router.query.q || '').toLowerCase().trim();
+
+  // Find product or make dynamic one
+  const product = PRODUCTS[q] || PRODUCTS[Object.keys(PRODUCTS).find(k => q.includes(k))] || { name: q? q.charAt(0).toUpperCase()+q.slice(1) : "Product", mrp: q.includes('iphone')? 79900 : 30 };
+
+  const fees = {
+    zepto: { delivery: 40, handling: 10, smallCart: 20, surge: 0 },
+    instamart: { delivery: 40, handling: 10, smallCart: 20, surge: 0 },
+    blinkit: { delivery: 40, handling: 10, smallCart: 20, surge: 15 },
+  };
+
+  const calcFinal = (f) => product.mrp + f.delivery + f.handling + f.smallCart + f.surge;
+
+  let platforms = [
+    { id: 'zepto', name: 'Zepto', final: calcFinal(fees.zepto), breakdown: `MRP ₹${product.mrp} + Delivery ₹${fees.zepto.delivery} + Handling ₹${fees.zepto.handling} + Small Cart ₹${fees.zepto.smallCart} = ₹${calcFinal(fees.zepto)} Final`, extra: calcFinal(fees.zepto)-product.mrp },
+    { id: 'instamart', name: 'Instamart', final: calcFinal(fees.instamart), breakdown: `MRP ₹${product.mrp} + Delivery ₹${fees.instamart.delivery} + Handling ₹${fees.instamart.handling} + Small Cart ₹${fees.instamart.smallCart} = ₹${calcFinal(fees.instamart)} Final`, extra: calcFinal(fees.instamart)-product.mrp },
+    { id: 'blinkit', name: 'Blinkit', final: calcFinal(fees.blinkit), breakdown: `MRP ₹${product.mrp} + Delivery ₹${fees.blinkit.delivery} + Handling ₹${fees.blinkit.handling} + Surge ₹${fees.blinkit.surge} + Small Cart ₹${fees.blinkit.smallCart} = ₹${calcFinal(fees.blinkit)} Final`, extra: calcFinal(fees.blinkit)-product.mrp },
+  ];
+
+  platforms = platforms.sort((a,b) => sort==='low'? a.final-b.final : b.final-a.final);
+  const cheapest = [...platforms].sort((a,b)=>a.final-b.final)[0];
+
+  return (
+    <div style={{ maxWidth: 650, margin: '0 auto', padding: 20, fontFamily: 'system-ui, Arial', background:'#fff', minHeight:'100vh' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, fontWeight:'bold' }}><span style={{background:'#10b981', color:'white', padding:'4px 8px', borderRadius:8}}>₹</span> RealDAM</div>
+        <button onClick={()=>router.push('/')} style={{ border:'none', background:'none', cursor:'pointer' }}>← Back</button>
+      </div>
+
+      <h2 style={{ marginTop:20 }}>Results for "{router.query.q}" - REAL Dam</h2>
+      <p style={{ color:'#666', fontSize:13 }}>MRP ₹{product.mrp} | Showing FINAL price with all fees | {product.name}</p>
+
+      <div style={{ display:'flex', gap:8, marginBottom:15 }}>
+        <button onClick={()=>setSort('low')} style={{ padding:'6px 12px', borderRadius:20, border:'1px solid #ccc', background: sort==='low'?'#000':'#fff', color: sort==='low'?'#fff':'#000', fontSize:12 }}>Low to High</button>
+        <button onClick={()=>setSort('high')} style={{ padding:'6px 12px', borderRadius:20, border:'1px solid #ccc', background: sort==='high'?'#000':'#fff', color: sort==='high'?'#fff':'#000', fontSize:12 }}>High to Low</button>
+      </div>
+
+      {platforms.map((p, i) => (
+        <div key={p.id} style={{ border: p.id===cheapest.id?'2px solid #10b981':'1px solid #eee', background: p.id===cheapest.id?'#f0fdf4':'#fff', padding:15, borderRadius:12, marginBottom:12, position:'relative' }}>
+          <div style={{ display:'flex', justifyContent:'space-between' }}>
+            <div style={{ fontWeight:'bold' }}>{p.name} {p.id===cheapest.id && <span style={{ background:'#facc15', padding:'2px 6px', borderRadius:4, fontSize:11, marginLeft:5 }}>🏆 Cheapest</span>}</div>
+            <div style={{ fontWeight:'bold' }}>₹{p.final}</div>
+          </div>
+          <div style={{ fontSize:11, color:'#555', marginTop:5 }}>{p.breakdown}</div>
+          <div style={{ fontSize:11, color: p.extra>500?'#dc2626':'#16a34a', marginTop:5 }}>You saw ₹{product.mrp} but pay ₹{p.final}. Extra ₹{p.extra} hidden fees!</div>
+        </div>
+      ))}
+
+      <div style={{ background:'#111', color:'#fff', padding:12, borderRadius:10, textAlign:'center', marginTop:20, fontSize:13 }}>
+        Cheapest is <b>{cheapest.name}</b> at <b>₹{cheapest.final}</b> - Save ₹{platforms[platforms.length-1].final - cheapest.final} vs highest!
+      </div>
+    </div>
+  );
+}
