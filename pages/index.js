@@ -14,58 +14,35 @@ export default function Home() {
     setLoading(false);
   };
 
-  const cheapest = results[0];
-
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
-      {/* Header - Blue Black White */}
-      <div className="bg-gradient-to-r from-[#0f172a] to-[#1e3a8a] text-white py-6 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl font-black tracking-tight">RealDAM</h1>
-          <p className="text-blue-200 text-xs mt-1 tracking-[0.3em]">TRUE PRICE FINDER</p>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: 'Arial' }}>
+      <div style={{ background: 'linear-gradient(90deg, #0f172a, #1e3a8a)', color: 'white', padding: '25px', textAlign: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '900' }}>RealDAM</h1>
+        <p style={{ margin: '5px 0 0', fontSize: '10px', letterSpacing: '4px', color: '#93c5fd' }}>TRUE PRICE FINDER</p>
       </div>
 
-      <div className="max-w-3xl mx-auto p-4 -mt-6">
-        {/* Search Box - White */}
-        <div className="bg-white shadow-xl shadow-blue-900/10 rounded-2xl p-3 flex gap-2 border border-slate-100">
-          <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Search T-shirt, iPhone, Shoes..." className="flex-1 bg-slate-50 border-0 p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
-          <button onClick={search} className="bg-[#0f172a] hover:bg-black text-white px-7 rounded-xl font-bold text-sm transition">Search</button>
+      <div style={{ maxWidth: '700px', margin: '-20px auto 0', padding: '15px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', padding: '12px', display: 'flex', gap: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+          <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Search T-shirt, iPhone..." style={{ flex: 1, border: '1px solid #e2e8f0', background: '#f8fafc', padding: '12px', borderRadius: '10px', outline: 'none' }} />
+          <button onClick={search} style={{ background: '#0f172a', color: 'white', border: 'none', padding: '0 24px', borderRadius: '10px', fontWeight: 'bold' }}>Search</button>
         </div>
 
-        {loading && <p className="text-center mt-8 text-blue-600 animate-pulse font-bold">Finding best prices...</p>}
+        {loading && <p style={{ textAlign: 'center', marginTop: '20px', color: '#2563eb', fontWeight: 'bold' }}>Finding best prices...</p>}
 
-        {cheapest && (
-          <div className="bg-white border border-blue-100 rounded-[24px] p-4 mt-6 shadow-2xl shadow-blue-500/10 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-br-xl tracking-widest">CHEAPEST</div>
-            <div className="flex gap-4 mt-6">
-              <img src={cheapest.thumbnail} className="w-24 h-24 object-contain bg-slate-50 rounded-xl p-1 border" />
-              <div className="flex-1">
-                <p className="font-bold text-[14px] leading-tight line-clamp-2">{cheapest.title}</p>
-                <p className="text-2xl font-black text-[#0f172a] mt-1">{cheapest.price_str}</p>
-                <div className="flex items-center gap-2 mt-2 bg-blue-50 w-fit px-2.5 py-1 rounded-full border border-blue-100">
-                  <img src={cheapest.logo} className="w-4 h-4 rounded-full bg-white" />
-                  <p className="text-[11px] font-bold text-blue-700">{cheapest.source} ✓ Verified</p>
+        <div style={{ marginTop: '20px', display: 'grid', gap: '12px' }}>
+          {results.map((item, i) => (
+            <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '12px', display: 'flex', gap: '12px', border: i===0 ? '2px solid #2563eb' : '1px solid #e2e8f0', position: 'relative' }}>
+              {i===0 && <span style={{ position: 'absolute', top: 0, left: 0, background: '#2563eb', color: 'white', fontSize: '9px', fontWeight: '900', padding: '4px 10px', borderRadius: '16px 0 10px 0' }}>CHEAPEST</span>}
+              <img src={item.thumbnail} style={{ width: '80px', height: '80px', objectFit: 'contain', background: '#f8fafc', borderRadius: '10px', marginTop: i===0 ? '15px' : '0' }} />
+              <div style={{ flex: 1, marginTop: i===0 ? '15px' : '0' }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.title}</p>
+                <p style={{ margin: '4px 0', fontSize: '18px', fontWeight: '900' }}>{item.price_str}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <img src={item.logo} style={{ width: '16px', height: '16px', borderRadius: '50%' }} />
+                  <span style={{ fontSize: '11px', color: '#475569', fontWeight: 'bold' }}>{item.source} ✓</span>
                 </div>
               </div>
-            </div>
-            <a href={cheapest.product_link} target="_blank" className="block bg-[#1e3a8a] hover:bg-[#0f172a] text-white text-center mt-4 py-3.5 rounded-xl font-bold text-sm transition">Buy on {cheapest.source} →</a>
-          </div>
-        )}
-
-        <div className="mt-6 grid gap-2">
-          {results.slice(1).map((item, i) => (
-            <div key={i} className="bg-white rounded-2xl p-3 flex gap-3 border border-slate-100 hover:border-blue-200 transition">
-              <img src={item.thumbnail} className="w-16 h-16 object-contain bg-slate-50 rounded-lg" />
-              <div className="flex-1">
-                <p className="text-[13px] font-medium line-clamp-2 leading-tight">{item.title}</p>
-                <p className="font-black text-[#0f172a] mt-1">{item.price_str}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <img src={item.logo} className="w-3.5 h-3.5 rounded-full" />
-                  <p className="text-[11px] text-slate-500 font-medium">{item.source}</p>
-                </div>
-              </div>
-              <a href={item.product_link} target="_blank" className="text-[11px] bg-[#0f172a] text-white px-4 py-2 rounded-full h-fit font-bold">View</a>
+              <a href={item.product_link} target="_blank" style={{ background: '#0f172a', color: 'white', textDecoration: 'none', padding: '8px 14px', borderRadius: '20px', fontSize: '11px', height: 'fit-content', fontWeight: 'bold' }}>Buy</a>
             </div>
           ))}
         </div>
