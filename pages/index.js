@@ -28,7 +28,6 @@ export default function Home() {
 
       {/* Hero */}
       <div style={{ maxWidth: "800px", margin: "40px auto 0", padding: "0 20px", textAlign: "center" }}>
-        {/* Logo Big */}
         <div style={{ margin: "0 auto 18px", width: "72px", height: "72px", background: "linear-gradient(135deg, #0f172a 0%, #1e40af 100%)", borderRadius: "20px", display: "grid", placeItems: "center", boxShadow: "0 12px 30px rgba(37,99,235,0.25)" }}>
           <div style={{ position: "relative" }}>
             <span style={{ fontSize: "36px" }}>🛍️</span>
@@ -43,7 +42,6 @@ export default function Home() {
           Sabse Sasta Nahi, <span style={{ color: "#0f172a", fontWeight: 700 }}>TRUE Final Price</span> Dikhate Hai
         </p>
 
-        {/* Search Bar */}
         <div style={{ background: "white", border: "2px solid #e2e8f0", borderRadius: "16px", padding: "6px", display: "flex", alignItems: "center", boxShadow: "0 8px 30px rgba(15,23,42,0.06)", maxWidth: "640px", margin: "0 auto" }}>
           <div style={{ paddingLeft: "14px", color: "#94a3b8" }}>🔍</div>
           <input
@@ -61,7 +59,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Tags */}
         <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginTop: "18px" }}>
           {["iPhone 15", "Nike Shoes", "Smart Watch", "Headphones"].map((t) => (
             <button key={t} onClick={() => router.push(`/search?q=${t}`)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px 12px", borderRadius: "20px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
@@ -71,17 +68,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Features - Blue Black White */}
-      <div style={{ maxWidth: "1000px", margin: "60px auto 0", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+      {/* Features - 2 ONLY */}
+      <div style={{ maxWidth: "800px", margin: "60px auto 0", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
         <div style={{ background: "#0f172a", color: "white", borderRadius: "16px", padding: "20px" }}>
           <div style={{ fontSize: "22px", marginBottom: "8px" }}>⚡</div>
           <div style={{ fontWeight: 700, fontSize: "14px" }}>Instant TRUE Price</div>
           <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "4px" }}>No extra charges, final checkout price</div>
-        </div>
-        <div style={{ background: "#eff6ff", border: "1px solid #dbeafe", borderRadius: "16px", padding: "20px" }}>
-          <div style={{ fontSize: "22px", marginBottom: "8px" }}>🔍</div>
-          <div style={{ fontWeight: 700, fontSize: "14px", color: "#1e3a8a" }}>30-Day Cache</div>
-          <div style={{ fontSize: "12px", color: "#3b82f6", marginTop: "4px" }}>1 search = 30 days saved</div>
         </div>
         <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "20px" }}>
           <div style={{ fontSize: "22px", marginBottom: "8px" }}>🛡️</div>
