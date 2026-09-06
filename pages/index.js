@@ -1,88 +1,67 @@
 import { useState } from "react";
-import { useRouter } from "next/router";
 
 export default function Home() {
   const [q, setQ] = useState("");
-  const router = useRouter();
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const search = () => {
-    if (!q.trim()) return;
-    router.push(`/search?q=${encodeURIComponent(q.trim())}`);
+  const search = async () => {
+    if (!q) return;
+    setLoading(true);
+    const res = await fetch(`/api/search?q=${q}`);
+    const data = await res.json();
+    setResults(data.results || []);
+    setLoading(false);
   };
 
+  const cheapest = results[0];
+
   return (
-    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "Inter, system-ui, sans-serif" }}>
-      {/* Top Bar */}
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "42px", height: "42px", background: "#0f172a", borderRadius: "12px", display: "grid", placeItems: "center", position: "relative" }}>
-            <span style={{ fontSize: "20px" }}>🛍️</span>
-            <span style={{ position: "absolute", right: "-6px", top: "-6px", background: "#2563eb", color: "white", fontSize: "10px", fontWeight: 800, width: "18px", height: "18px", borderRadius: "50%", display: "grid", placeItems: "center" }}>⇄</span>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl font-bold text-center mb-1">RealDAM</h1>
+        <p className="text-center text-xs mb-4">TRUE Price Finder</p>
+
+        <div className="flex gap-2 mb-6">
+          <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Search T-shirt, iPhone..." className="flex-1 border p-3 rounded-xl" />
+          <button onClick={search} className="bg-black text-white px-6 rounded-xl">Search</button>
+        </div>
+
+        {loading && <p className="text-center">Searching...</p>}
+
+        {cheapest && (
+          <div className="bg-white border-2 border-green-500 rounded-2xl p-4 mb-4">
+            <p className="text-xs font-bold text-green-600">CHEAPEST</p>
+            <div className="flex gap-3 mt-2">
+              <img src={cheapest.thumbnail} className="w-20 h-20 object-contain" />
+              <div className="flex-1">
+                <p className="font-bold text-sm">{cheapest.title}</p>
+                <p className="text-lg font-bold">{cheapest.price_str}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <img src={cheapest.logo} className="w-5 h-5 rounded-full" />
+                  <p className="text-xs">{cheapest.source} ✓</p>
+                </div>
+              </div>
+            </div>
+            <a href={cheapest.product_link} target="_blank" className="block bg-black text-white text-center mt-3 py-3 rounded-xl">Buy on {cheapest.source} →</a>
           </div>
-          <span style={{ fontWeight: 900, fontSize: "20px", letterSpacing: "-0.5px", color: "#0f172a" }}>RealDAM</span>
-        </div>
-        <div style={{ fontSize: "12px", color: "#64748b", background: "#f1f5f9", padding: "6px 12px", borderRadius: "20px" }}>
-          TRUE Price Finder
-        </div>
-      </div>
+        )}
 
-      {/* Hero */}
-      <div style={{ maxWidth: "800px", margin: "40px auto 0", padding: "0 20px", textAlign: "center" }}>
-        <div style={{ margin: "0 auto 18px", width: "72px", height: "72px", background: "linear-gradient(135deg, #0f172a 0%, #1e40af 100%)", borderRadius: "20px", display: "grid", placeItems: "center", boxShadow: "0 12px 30px rgba(37,99,235,0.25)" }}>
-          <div style={{ position: "relative" }}>
-            <span style={{ fontSize: "36px" }}>🛍️</span>
-            <span style={{ position: "absolute", right: "-10px", bottom: "-2px", background: "white", color: "#2563eb", fontSize: "14px", fontWeight: 900, width: "22px", height: "22px", borderRadius: "50%", display: "grid", placeItems: "center", border: "2px solid #2563eb" }}>⇄</span>
+        {results.slice(1).map((item, i) => (
+          <div key={i} className="bg-white rounded-xl p-3 mb-2 flex gap-3 border">
+            <img src={item.thumbnail} className="w-16 h-16 object-contain" />
+            <div className="flex-1">
+              <p className="text-sm line-clamp-2">{item.title}</p>
+              <p className="font-bold">{item.price_str}</p>
+              <div className="flex items-center gap-1">
+                <img src={item.logo} className="w-4 h-4 rounded-full" />
+                <p className="text-xs text-gray-500">{item.source}</p>
+              </div>
+            </div>
+            <a href={item.product_link} target="_blank" className="text-xs bg-gray-100 px-3 py-2 rounded-lg h-fit">View</a>
           </div>
-        </div>
-
-        <h1 style={{ fontSize: "42px", fontWeight: 900, letterSpacing: "-1.5px", color: "#0f172a", margin: "0 0 10px", lineHeight: 1.1 }}>
-          Real<span style={{ color: "#2563eb" }}>DAM</span>
-        </h1>
-        <p style={{ fontSize: "16px", color: "#475569", margin: "0 0 28px", fontWeight: 500 }}>
-          Sabse Sasta Nahi, <span style={{ color: "#0f172a", fontWeight: 700 }}>TRUE Final Price</span> Dikhate Hai
-        </p>
-
-        <div style={{ background: "white", border: "2px solid #e2e8f0", borderRadius: "16px", padding: "6px", display: "flex", alignItems: "center", boxShadow: "0 8px 30px rgba(15,23,42,0.06)", maxWidth: "640px", margin: "0 auto" }}>
-          <div style={{ paddingLeft: "14px", color: "#94a3b8" }}>🔍</div>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && search()}
-            placeholder="Product search karo - iPhone, Shoes, Watch..."
-            style={{ flex: 1, border: "none", outline: "none", padding: "14px 12px", fontSize: "15px", color: "#0f172a" }}
-          />
-          <button
-            onClick={search}
-            style={{ background: "#2563eb", color: "white", border: "none", padding: "12px 22px", borderRadius: "12px", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}
-          >
-            Search
-          </button>
-        </div>
-
-        <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginTop: "18px" }}>
-          {["iPhone 15", "Nike Shoes", "Smart Watch", "Headphones"].map((t) => (
-            <button key={t} onClick={() => router.push(`/search?q=${t}`)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px 12px", borderRadius: "20px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
-              {t}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
-
-      {/* Features - 2 ONLY */}
-      <div style={{ maxWidth: "800px", margin: "60px auto 0", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
-        <div style={{ background: "#0f172a", color: "white", borderRadius: "16px", padding: "20px" }}>
-          <div style={{ fontSize: "22px", marginBottom: "8px" }}>⚡</div>
-          <div style={{ fontWeight: 700, fontSize: "14px" }}>Instant TRUE Price</div>
-          <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "4px" }}>No extra charges, final checkout price</div>
-        </div>
-        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "20px" }}>
-          <div style={{ fontSize: "22px", marginBottom: "8px" }}>🛡️</div>
-          <div style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>No Fake Discount</div>
-          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>Real deal, not inflated MRP</div>
-        </div>
-      </div>
-
-      <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: "12px" }}>© 2025 RealDAM • Blue • Black • White</div>
     </div>
   );
 }
