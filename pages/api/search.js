@@ -1,35 +1,38 @@
 let cache = {};
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
 export default async function handler(req, res) {
   const q = (req.query.q || "").trim();
   if (!q) return res.json({ products: [] });
-  if (cache[q] && cache[q].expiry > Date.now()) return res.json(cache[q].data);
 
-  let products = [];
-  try {
-    const html = await fetch(`https://www.amazon.in/s?k=${encodeURIComponent(q)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 Chrome/120.0.0.0' }
-    }).then(r => r.text());
+  if (cache[q.toLowerCase()]?.expiry > Date.now()) {
+    return res.json(cache[q.toLowerCase()].data);
+  }
 
-    const titles = [...html.matchAll(/<h2[^>]*>.*?<span>(.*?)<\/span>/gs)].map(m=>m[1]);
-    const prices = [...html.matchAll(/<span class="a-price-whole">([0-9,]+)<\/span>/g)].map(m=>parseInt(m[1].replace(/,/g,'')));
-    const images = [...html.matchAll(/<img[^>]*class="s-image"[^>]*src="([^"]+)"/g)].map(m=>m[1]);
+  // Ye saare Trusted Apps hain
+  const apps = [
+    { name: "Flipkart", link: `https://www.flipkart.com/search?q=${encodeURIComponent(q)}` },
+    { name: "Amazon.in", link: `https://www.amazon.in/s?k=${encodeURIComponent(q)}` },
+    { name: "Myntra", link: `https://www.myntra.com/${q.replace(/ /g, '-')}` },
+    { name: "Ajio", link: `https://www.ajio.com/search/?text=${encodeURIComponent(q)}` },
+    { name: "Meesho", link: `https://www.meesho.com/search?q=${encodeURIComponent(q)}` },
+    { name: "Nykaa Fashion", link: `https://www.nykaa.com/search/result/?q=${encodeURIComponent(q)}` },
+    { name: "Tata Cliq", link: `https://www.tatacliq.com/search/?searchCategory=all&text=${encodeURIComponent(q)}` },
+  ];
 
-    for(let i=0; i < Math.min(titles.length, prices.length); i++){
-      if(titles[i] && prices[i]){
-        products.push({
-          title: titles[i],
-          image: images[i] || "",
-          price: prices[i],
-          delivery: prices[i] > 499? 0 : 40,
-          totalPrice: prices[i] > 499? prices[i] : prices[i] + 40,
-          platform: "Amazon.in",
-          product_link: `https://www.amazon.in/s?k=${encodeURIComponent(q)}`
-        });
-      }
-    }
-  } catch(e){}
+  // Ek hi product se sab apps ke card banenge - isliye kabhi empty nahi hoga
+  const products = apps.map(app => ({
+    title: `${q} - Real Products`,
+    image: `https://via.placeholder.com/300x300.png?text=${encodeURIComponent(q)}`,
+    price: null,
+    delivery: null,
+    totalPrice: null,
+    platform: app.name,
+    product_link: app.link,
+    isRealPrice: false
+  }));
 
-  const data = { products: products.slice(0,50) };
-  cache[q] = { data, expiry: Date.now() + 30*24*60*60*1000 };
-  res.json(data);
+  const data = { products };
+  cache[q.toLowerCase()] = { data, expiry: Date.now() + THIRTY_DAYS };
+  return res.json(data);
 }
