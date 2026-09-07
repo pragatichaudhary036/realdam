@@ -1,20 +1,24 @@
-// REALDAM API - FINAL with 6 logic
 let cache = globalThis.realdamCache || (globalThis.realdamCache = {});
 
-// 1. SIRF TRUSTED APPS
 const TRUSTED_APPS = ["Flipkart", "Amazon", "Myntra", "Nykaa", "Ajio", "Meesho", "Amazon.in"];
 
 export default async function handler(req, res){
-  const { q } = req.query;
-  if(!q) return res.json({products:[]});
+  const { q, clear } = req.query;
 
+  // CACHE CLEAR LOGIC
+  if(clear === "1"){
+    cache = {};
+    globalThis.realdamCache = {};
+    return res.json({msg:"Cache cleared - 6 points wala naya code chalega"});
+  }
+
+  if(!q) return res.json({products:[]});
   const key = q.toLowerCase().trim();
   const now = Date.now();
   const THIRTY_DAYS = 30*24*60*60*1000;
 
-  // ===== 1. 30 DAY LOGIC =====
+  // 1. 30 DAY LOGIC
   if(cache[key] && cache[key].expiry > now){
-    console.log("CACHE HIT:", key);
     return res.json({products: cache[key].data, cached: true});
   }
 
@@ -26,60 +30,45 @@ export default async function handler(req, res){
     const data = await r.json();
     let results = data.shopping_results || [];
 
-    // ===== 2. SIRF TRUSTED APPS FILTER =====
+    // 2. SIRF TRUSTED APPS
     results = results.filter(item => {
       const source = (item.source || "").toLowerCase();
-      return TRUSTED_APPS.some(trusted => source.includes(trusted.toLowerCase()));
+      return TRUSTED_APPS.some(t => source.includes(t.toLowerCase()));
     });
 
     const products = results.map(item=>{
-      // ===== 3. NO FAKE PRICE + APP SE TRUE PRICE =====
-      // extracted_price = real price jo app dikhata hai, price string fake ho sakta hai
-      let truePrice = item.extracted_price;
-      if(!truePrice){
-        // Agar extracted nahi hai toh price string se number nikalo
-        truePrice = parseInt((item.price || "").replace(/[^0-9]/g,'')) || 0;
-      }
-
-      // Fake price filter - agar price 0 hai ya bahut zyada hai toh skip
+      // 3. NO FAKE PRICE + APP SE TRUE PRICE
+      let truePrice = item.extracted_price || parseInt((item.price || "").replace(/[^0-9]/g,'')) || 0;
       if(truePrice < 10 || truePrice > 100000) return null;
 
-      // ===== 4. DELIVERY CHARGE ADDED =====
-      const extensions = (item.extensions || []).join(" ").toLowerCase();
-      let deliveryCharge = 0;
-      let isFreeDelivery = extensions.includes("free delivery") || extensions.includes("free shipping");
+      // 4. DELIVERY CHARGE ADDED
+      const ext = (item.extensions || []).join(" ").toLowerCase();
+      let isFree = ext.includes("free delivery") || ext.includes("free shipping");
+      let deliveryCharge = isFree? 0 : (truePrice < 500? 40 : 0);
+      let totalPrice = truePrice + deliveryCharge;
 
-      if(!isFreeDelivery){
-        if(truePrice < 500) deliveryCharge = 40; // 500 se kam pe 40rs
-        else deliveryCharge = 0; // 500 se zyada pe free
-      }
-
-      const totalPrice = truePrice + deliveryCharge;
-
-      // ===== 5. BUY ON APP SE APP PE JAO =====
-      // Google shopping link se direct merchant link banao - ye app me khulega
-      let appLink = item.product_link;
-      let webLink = item.product_link;
-
-      // Direct link = Google redirect ko bypass karke direct store
-      // Flipkart/Amazon ke links universal links hain - mobile pe app me khulenge
-      if(item.source?.toLowerCase().includes("flipkart")){
-        // Flipkart link already app supported hai
-        webLink = item.product_link;
-        appLink = item.product_link; // Phone pe Flipkart app me khulega
-      } else if(item.source?.toLowerCase().includes("amazon")){
-        webLink = item.product_link;
-        appLink = item.product_link; // Phone pe Amazon app me khulega
-      }
-
+      // 5. BUY ON APP SE APP PE JO + 6. TRUE PRICE
       return {
         title: item.title,
-        price: truePrice, // TRUE PRICE
-        totalPrice: totalPrice, // Delivery ke saath
+        price: truePrice,
+        totalPrice: totalPrice,
         deliveryCharge: deliveryCharge,
-        isFreeDelivery: isFreeDelivery,
+        isFreeDelivery: isFree,
         image: item.product_photos?.[0] || item.thumbnail,
         platform: item.source,
-        product_link: webLink, // Buy pe ye khulega - app pe jayega
-        app_link: appLink, // App deep link
-        rating
+        product_link: item.product_link, // App me khulega
+        app_link: item.product_link,
+        trusted: true
+      };
+    }).filter(Boolean);
+
+    products.sort((a,b) => a.totalPrice - b.totalPrice);
+
+    cache[key] = { data: products, expiry: now + THIRTY_DAYS };
+
+    res.json({products, cached: false});
+
+  }catch(e){
+    res.json({products:[]});
+  }
+}
