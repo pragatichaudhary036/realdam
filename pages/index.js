@@ -1,85 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState } from 'react';
 
 export default function Home() {
-  const [q, setQ] = useState("");
-  const [items, setItems] = useState([]);
+  const [query, setQuery] = useState('');
+  const [products, setProducts] = useState([]);
+  const [sortBy, setSortBy] = useState('none');
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [sort, setSort] = useState(null);
-  const [showSort, setShowSort] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState(null);
-  const [showInstall, setShowInstall] = useState(false);
 
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-      setShowInstall(true);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    setTimeout(() => setShowInstall(true), 1500);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-      await installPrompt.userChoice;
-      setShowInstall(false);
-    } else {
-      alert("Upar 3 dot pe click karo > Add to Home Screen / Install App karo");
-    }
-  };
-
-  const doSearch = async (e) => {
-    if (e) e.preventDefault();
-    if (!q) return;
+  const search = async () => {
+    if(!query) return;
     setLoading(true);
-    setSearched(true);
-    const r = await fetch(`/api/search?q=${q}`);
-    const d = await r.json();
-    setItems(d.products || []);
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    setProducts(data.products || []);
     setLoading(false);
-  };
+  }
 
-  let sorted = [...items];
-  if (sort === "low") sorted.sort((a, b) => a.totalPrice - b.totalPrice);
-  if (sort === "high") sorted.sort((a, b) => b.totalPrice - a.totalPrice);
+  let display = [...products];
+  if (sortBy === 'lowToHigh') display.sort((a,b) => a.totalPrice - b.totalPrice);
+  if (sortBy === 'highToLow') display.sort((a,b) => b.totalPrice - a.totalPrice);
 
   return (
-    <div style={{ background: "#fff", minHeight: "100vh", color: "#0a2540" }}>
-      <div style={{ background: "#0a2540", color: "#fff", padding: searched? "10px 16px" : "14px 16px", display: "flex", gap: 10, alignItems: "center" }}>
-        <div style={{ background: "#2563eb", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>R</div>
-        <div><b>realdam</b><span style={{ fontSize: 11, opacity: 0.8, marginLeft: 6 }}>the true final price, sasta nhi real</span></div>
+    <div style={{maxWidth: '1000px', margin: '0 auto', padding: '20px', fontFamily: 'sans-serif'}}>
+      <h1 style={{textAlign: 'center'}}>RealDam - Real Price Comparison</h1>
+      
+      <div style={{display:'flex', gap:'10px', margin:'20px 0'}}>
+        <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search product e.g. shoes" style={{flex:1, padding:'12px', border:'1px solid #ccc', borderRadius:'8px'}} />
+        <button onClick={search} style={{padding:'12px 20px', background:'black', color:'white', borderRadius:'8px'}}>Search</button>
       </div>
 
-      {!searched? (
-        <div style={{ textAlign: "center", padding: "60px 20px" }}>
-          <h1>realdam</h1>
-          <form onSubmit={doSearch} style={{ border: "2px solid #0a2540", borderRadius: 30, display: "flex", padding: 4, maxWidth: 400, margin: "30px auto" }}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." style={{ flex: 1, border: "none", outline: "none", padding: 10 }} />
-            <button style={{ background: "#0a2540", color: "#fff", borderRadius: 20, padding: "10px 20px", border: "none" }}>Search</button>
-          </form>
-        </div>
-      ) : (
-        <div>
-          <form onSubmit={doSearch} style={{ border: "2px solid #0a2540", borderRadius: 30, display: "flex", padding: 4, margin: 12 }}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, border: "none", outline: "none", padding: 10 }} />
-            <button style={{ background: "#0a2540", color: "#fff", borderRadius: 20, padding: "10px 20px", border: "none" }}>Search</button>
-          </form>
-          <div style={{ padding: "0 12px", display: "flex", gap: 8 }}>
-            <button onClick={() => setShowSort(!showSort)} style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid #0a2540" }}>Sort</button>
-            {showSort && (
-              <>
-                <button onClick={() => { setSort("low"); setShowSort(false); }} style={{ padding: "6px 12px", borderRadius: 20, background: sort === "low"? "#0a2540" : "#fff", color: sort === "low"? "#fff" : "#000" }}>Low to High</button>
-                <button onClick={() => { setSort("high"); setShowSort(false); }} style={{ padding: "6px 12px", borderRadius: 20, background: sort === "high"? "#0a2540" : "#fff", color: sort === "high"? "#fff" : "#000" }}>High to Low</button>
-              </>
-            )}
+      <div style={{marginBottom:'15px'}}>
+        <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{padding:'8px', borderRadius:'6px'}}>
+          <option value="none">Sort: None (Optional)</option>
+          <option value="lowToHigh">Low to High</option>
+          <option value="highToLow">High to Low</option>
+        </select>
+        <span style={{marginLeft:'10px', color:'#666'}}>{display.length} products found (Real only, No Dummy)</span>
+      </div>
+
+      {loading && <p>Loading real products from trusted apps...</p>}
+
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:'15px'}}>
+        {display.map((p,i)=>(
+          <div key={i} style={{border:'1px solid #eee', borderRadius:'12px', padding:'12px'}}>
+            <img src={p.image} alt="" style={{width:'100%', height:'180px', objectFit:'contain'}} />
+            <h3 style={{fontSize:'14px', height:'40px', overflow:'hidden'}}>{p.title}</h3>
+            <p style={{margin:'5px 0'}}>Price: ₹{p.price}</p>
+            <p style={{margin:'5px 0'}}>Delivery: ₹{p.delivery}</p>
+            <p style={{margin:'5px 0', fontWeight:'bold'}}>Total: ₹{p.totalPrice}</p>
+            <p style={{color:'green', fontWeight:'bold'}}>Cheapest on: {p.platform}</p>
+            <a href={p.product_link} target="_blank" rel="noreferrer" style={{display:'block', textAlign:'center', background:'#ff9900', color:'black', padding:'8px', borderRadius:'6px', marginTop:'8px', textDecoration:'none'}}>View on {p.platform}</a>
           </div>
-          {loading? <div style={{ textAlign: "center", padding: 50 }}><div style={{ fontSize: 40 }}>🛒</div><p>Real Price Check Ho Raha Hai...</p></div> : <div style={{ padding: 12 }}>{sorted.map((p, i) => (<div key={i} style={{ border: i === 0? "2px solid #2563eb" : "1px solid #ddd", borderRadius: 12, padding: 10, marginBottom: 10, display: "flex", gap: 10 }}><img src={p.image} style={{ width: 60, height: 60, borderRadius: 8 }} alt=""/><div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>{p.title}</div><div style={{ fontWeight: 700 }}>Rs {p.price} = Rs {p.totalPrice} Final</div>{i===0 && <span style={{ background: "#2563eb", color: "#fff", fontSize: 10, padding: "2px 6px", borderRadius: 8 }}>WINNER</span>}</div><button onClick={() => window.location.href = p.product_link} style={{ background: "#0a2540", color: "#fff", borderRadius: 16, padding: "8px 12px", height: 36, border: "none", fontSize: 11 }}>Buy on {p.platform}</button></div>))}</div>}
-        </div>
-      )}
-      {showInstall && <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#0a2540", color: "#fff", padding: 12, display: "flex", justifyContent: "space-between" }}><span>Install RealDAM</span><button onClick={handleInstall} style={{ background: "#fff", color: "#0a2540", borderRadius: 20, padding: "6px 12px", border: "none", fontWeight: 700 }}>Add to Home Screen</button></div>}
+        ))}
+      </div>
     </div>
-  );
+  )
 }
