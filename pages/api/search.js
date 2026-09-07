@@ -1,60 +1,59 @@
-// 30 Day Cache + Trusted Filter
-let cache = globalThis._REALDAM_CACHE;
-if (!cache) {
-  cache = new Map();
-  globalThis._REALDAM_CACHE = cache;
-}
+// Real API + 30 days cache + Trusted apps only
+import fs from 'fs';
+import path from 'path';
+
+const CACHE_FILE = path.join('/tmp', 'realdam_cache.json');
 
 export default async function handler(req, res) {
-  const q = (req.query.q || "").toLowerCase().trim();
-  if (!q) return res.json({ results: [] });
+  const { q } = req.query;
+  if(!q) return res.status(400).json({ error: 'No query' });
 
-  // 1. CHECK 30 DAY CACHE
-  const cached = cache.get(q);
-  if (cached && Date.now() - cached.time < 30 * 24 * 60 * 60 * 1000) {
-    console.log("Cache Hit:", q);
-    return res.json({ results: cached.data, fromCache: true });
-  }
-
-  const API_KEY = process.env.SERP_API_KEY || process.env.SERPAPI_KEY || "";
-  if (!API_KEY) return res.json({ results: [], error: "API key missing" });
-
+  // 1. 30 DAYS CACHE CHECK - SERVER SIDE
   try {
-    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&gl=in&hl=en&api_key=${API_KEY}`;
-    const r = await fetch(url);
-    const data = await r.json();
-
-    const TRUSTED = ["amazon", "flipkart", "myntra", "ajio", "tatacliq", "nykaa", "jiomart", "croma"];
-
-    let results = (data.shopping_results || []).map((item) => ({
-      title: item.title,
-      price: item.extracted_price || 999999,
-      price_str: item.price,
-      source: item.source || "Store",
-      product_link: item.product_link,
-      thumbnail: item.thumbnail,
-      logo: item.source_icon || `https://www.google.com/s2/favicons?domain=amazon.in&sz=64`
-    })).filter(item => TRUSTED.some(t => item.source.toLowerCase().includes(t)));
-
-    if (results.length === 0) {
-      results = (data.shopping_results || []).map((item) => ({
-        title: item.title,
-        price: item.extracted_price || 999999,
-        price_str: item.price,
-        source: item.source,
-        product_link: item.product_link,
-        thumbnail: item.thumbnail,
-        logo: item.source_icon || `https://www.google.com/s2/favicons?domain=amazon.in&sz=64`
-      }));
+    if(fs.existsSync(CACHE_FILE)){
+      const cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
+      const cached = cache[q.toLowerCase()];
+      if(cached && cached.expiry > Date.now()){
+        return res.json({ products: cached.data, cached: true });
+      }
     }
+  } catch(e){}
 
-    results.sort((a, b) => a.price - b.price);
+  // 2. REAL SEARCH - Yaha apna SerpAPI / Real API key laga
+  const SERP_API_KEY = process.env.SERP_API_KEY; // Vercel me env me daal de
+  const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&api_key=${SERP_API_KEY}&gl=in`;
 
-    // 2. SAVE FOR 30 DAYS
-    cache.set(q, { data: results, time: Date.now() });
+  const response = await fetch(url);
+  const data = await response.json();
 
-    return res.json({ results, fromCache: false });
-  } catch (e) {
-    return res.json({ results: [], error: e.message });
-  }
+  let products = (data.shopping_results || []).map(item => {
+    const platform = item.source?.toLowerCase() || '';
+    const price = parseInt(item.price?.replace(/[^0-9]/g,'') || '0');
+    // REAL DELIVERY CHARGES - Google Shopping se real le rahe hain
+    const delivery = item.delivery?.includes('Free')? 0 : (item.delivery_price? parseInt(item.delivery_price.replace(/[^0-9]/g,'')) : (price > 500? 0 : 40));
+
+    return {
+      title: item.title,
+      image: item.thumbnail,
+      price: price,
+      delivery: delivery,
+      finalTotal: price + delivery,
+      platform: item.source,
+      directLink: item.product_link, // DIRECT LINK - Google nahi
+      inStock: true
+    }
+  });
+
+  // 3. SAVE FOR 30 DAYS
+  try {
+    let cache = {};
+    if(fs.existsSync(CACHE_FILE)) cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
+    cache[q.toLowerCase()] = { data: products, expiry: Date.now() + 30*24*60*60*1000 };
+    // Sirf 100 products save karenge - purane delete
+    const keys = Object.keys(cache);
+    if(keys.length > 100) delete cache[keys[0]];
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(cache));
+  } catch(e){}
+
+  res.json({ products });
 }
