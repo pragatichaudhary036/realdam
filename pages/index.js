@@ -6,103 +6,118 @@ export default function Home(){
   const [loading,setLoading]=useState(false);
   const [searched,setSearched]=useState(false);
   const [sort,setSort]=useState(null);
-  const [showSortMenu,setShowSortMenu]=useState(false);
-  const [deferredPrompt,setDeferredPrompt]=useState(null);
-  const [showInstall,setShowInstall]=useState(false);
+  const [showSort,setShowSort]=useState(false);
+  const [promptEvent,setPromptEvent]=useState(null);
+  const [showInstall,setShowInstall]=useState(true); // hamesha dikhega
 
   useEffect(()=>{
-    window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); setDeferredPrompt(e); setShowInstall(true); });
+    window.addEventListener('beforeinstallprompt',(e)=>{
+      e.preventDefault();
+      setPromptEvent(e);
+      setShowInstall(true);
+    });
+    // agar browser prompt na de to bhi 3 sec baad button dikhega
+    setTimeout(()=>setShowInstall(true), 1000);
   },[]);
 
-  const handleInstall = async()=>{
-    if(deferredPrompt){ deferredPrompt.prompt(); await deferredPrompt.userChoice; setShowInstall(false); }
+  const handleInstall=async()=>{
+    if(promptEvent){
+      promptEvent.prompt();
+      await promptEvent.userChoice;
+      setPromptEvent(null);
+      setShowInstall(false);
+    } else {
+      alert("3 dot pe click karo > Add to Home Screen / Install App pe click karo. App install ho jayega.");
+    }
   };
 
   const search=async(e)=>{
     if(e) e.preventDefault();
     if(!q) return;
-    setLoading(true); setSearched(true); setSort(null); setShowSortMenu(false);
+    setLoading(true); setSearched(true);
     const res=await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     const data=await res.json();
     setItems(data.products||[]);
     setLoading(false);
   };
 
-  const openApp = (link)=>{
-    if(link) window.open(link, "_blank");
-  };
-
-  let sorted = [...items];
+  let sorted=[...items];
   if(sort==="low") sorted.sort((a,b)=>a.totalPrice-b.totalPrice);
   if(sort==="high") sorted.sort((a,b)=>b.totalPrice-a.totalPrice);
 
+  const goToApp = (link) => {
+    // direct app pe leke jayega, google pe nahi
+    window.location.href = link;
+  };
+
   return(
-    <div style={{background:"#ffffff",minHeight:"100vh",fontFamily:"system-ui",color:"#0f172a"}}>
-      {/* HEADER - SAME THEME BOTH PAGES */}
-      <div style={{padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:searched?"1px solid #f1f5f9":"none"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:searched?32:42,height:searched?32:42,background:"#2563eb",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:900}}>R</div>
-          <div><div style={{fontWeight:800,fontSize:searched?16:18,lineHeight:1}}>RealDAM</div>{!searched && <div style={{fontSize:11,color:"#64748b"}}>TRUE Price Finder</div>}</div>
+    <div style={{background:"#ffffff", minHeight:"100vh", fontFamily:"Inter,system-ui", color:"#0a2540"}}>
+      <link rel="manifest" href="/manifest.json" />
+
+      {/* HEADER - SAME THEME HOME + 2ND PAGE */}
+      <div style={{background:"#0a2540", color:"#fff", padding: searched?"10px 16px":"14px 16px", display:"flex", alignItems:"center", gap:10}}>
+        <div style={{width:32,height:32,background:"#2563eb",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900}}>R</div>
+        <div style={{display:"flex", flexDirection: searched?"row":"column", gap: searched?6:0, alignItems: searched?"center":"flex-start"}}>
+          <b style={{fontSize: searched?16:18, letterSpacing:-0.5}}>realdam</b>
+          <span style={{fontSize:11, opacity:0.8, marginLeft: searched?6:0}}>the true final price, sasta nhi real</span>
         </div>
-        {searched && <div style={{fontSize:11,background:"#eff6ff",color:"#2563eb",padding:"4px 10px",borderRadius:20}}>TRUE Final Price</div>}
       </div>
 
-      {/* HOME */}
       {!searched ? (
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"30px 20px 0"}}>
-          <div style={{width:90,height:90,background:"#f8faff",borderRadius:24,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #dbeafe",fontSize:40}}>🛍️</div>
-          <h1 style={{fontSize:32,margin:"16px 0 4px",letterSpacing:-1}}>Real<span style={{color:"#2563eb"}}>DAM</span></h1>
-          <p style={{margin:0,fontSize:14,color:"#475569"}}>Sabse Sasta Nahi, <b style={{color:"#2563eb"}}>TRUE Final Price</b> Dikhata Hai</p>
+        /* HOME PAGE */
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", padding:"60px 20px 0"}}>
+          <div style={{width:80,height:80,background:"#eff6ff",border:"2px solid #0a2540",borderRadius:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36}}>🛍️</div>
+          <h1 style={{margin:"16px 0 4px", fontSize:28}}>realdam</h1>
+          <p style={{margin:0, fontSize:13, color:"#64748b"}}>the true final price, <b style={{color:"#0a2540"}}>sasta nhi real</b></p>
 
-          <form onSubmit={search} style={{width:"100%",maxWidth:460,marginTop:28,display:"flex",border:"2px solid #e2e8f0",borderRadius:30,padding:"4px 4px 4px 16px",alignItems:"center"}}>
-            <span>🔍</span>
-            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Product search karo - iPhone, Iron..." style={{flex:1,border:"none",outline:"none",padding:"12px 8px",fontSize:15}}/>
-            <button style={{background:"#2563eb",color:"#fff",border:"none",padding:"11px 20px",borderRadius:22,fontWeight:600}}>Search</button>
+          <form onSubmit={search} style={{width:"100%",maxWidth:460,marginTop:30,display:"flex",border:"2px solid #0a2540",borderRadius:30,padding:"4px", alignItems:"center"}}>
+            <span style={{paddingLeft:14}}>⌕</span>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search product..." style={{flex:1,border:"none",outline:"none",padding:"12px 8px",fontSize:15}}/>
+            <button style={{background:"#0a2540",color:"#fff",border:"none",padding:"12px 22px",borderRadius:24,fontWeight:700}}>Search</button>
           </form>
-
-          <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap",justifyContent:"center"}}>
-            {["iPhone 15","Nike Shoes","Smart Watch","Iron"].map(t=><button key={t} onClick={()=>{setQ(t); setTimeout(()=>{document.querySelector('form').requestSubmit()},100)}} style={{padding:"8px 14px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",fontSize:12}}>{t}</button>)}
-          </div>
         </div>
       ) : (
+        /* 2ND PAGE */
         <>
-          <form onSubmit={search} style={{padding:"12px 16px",display:"flex",border:"2px solid #2563eb",borderRadius:28,margin:"12px 16px",alignItems:"center"}}>
-            <span>🔍</span>
+          <form onSubmit={search} style={{display:"flex",margin:"12px 16px",border:"2px solid #0a2540",borderRadius:28,padding:"4px",alignItems:"center"}}>
+            <span style={{paddingLeft:12}}>⌕</span>
             <input value={q} onChange={e=>setQ(e.target.value)} style={{flex:1,border:"none",outline:"none",padding:"10px 8px"}}/>
-            <button style={{background:"#2563eb",color:"#fff",border:"none",padding:"8px 16px",borderRadius:20}}>Search</button>
+            <button style={{background:"#0a2540",color:"#fff",border:"none",padding:"10px 18px",borderRadius:20}}>Search</button>
           </form>
 
-          {/* OPTIONAL SORT - AB OPTIONAL HAI */}
-          <div style={{padding:"0 16px",display:"flex",gap:8,position:"relative"}}>
-            <button onClick={()=>setShowSortMenu(!showSortMenu)} style={{padding:"8px 16px",borderRadius:20,border:"1px solid #2563eb",background:"#fff",fontSize:13,fontWeight:600}}>⇅ Sort {sort?`(${sort})`:""}</button>
-            {showSortMenu && (
-              <div style={{position:"absolute",top:40,left:16,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,boxShadow:"0 10px 20px rgba(0,0,0,0.1)",zIndex:20,overflow:"hidden"}}>
-                <div onClick={()=>{setSort("low");setShowSortMenu(false)}} style={{padding:"12px 20px",fontSize:13,background:sort==="low"?"#eff6ff":"#fff",cursor:"pointer"}}>Low to High</div>
-                <div onClick={()=>{setSort("high");setShowSortMenu(false)}} style={{padding:"12px 20px",fontSize:13,background:sort==="high"?"#eff6ff":"#fff",cursor:"pointer"}}>High to Low</div>
-                <div onClick={()=>{setSort(null);setShowSortMenu(false)}} style={{padding:"12px 20px",fontSize:13,cursor:"pointer",borderTop:"1px solid #f1f5f9"}}>Clear Sort</div>
-              </div>
-            )}
-            <button onClick={()=>{setSearched(false); setQ("");}} style={{padding:"8px 16px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",fontSize:13}}>← Home</button>
+          {/* OPTIONAL SHORT BAR - optional hai */}
+          <div style={{padding:"0 16px",display:"flex",gap:8}}>
+            <button onClick={()=>setShowSort(!showSort)} style={{padding:"7px 14px",borderRadius:20,border:"1px solid #0a2540",background:"#fff",fontSize:12,fontWeight:600}}>↕ Sort {sort?`(${sort})`:""}</button>
+            {showSort && <>
+              <button onClick={()=>{setSort("low");setShowSort(false)}} style={{padding:"7px 14px",borderRadius:20,border:sort==="low"?"1px solid #0a2540":"1px solid #e2e8f0",background:sort==="low"?"#0a2540":"#fff",color:sort==="low"?"#fff":"#000",fontSize:12}}>Low to High</button>
+              <button onClick={()=>{setSort("high");setShowSort(false)}} style={{padding:"7px 14px",borderRadius:20,border:sort==="high"?"1px solid #0a2540":"1px solid #e2e8f0",background:sort==="high"?"#0a2540":"#fff",color:sort==="high"?"#fff":"#000",fontSize:12}}>High to Low</button>
+            </>}
           </div>
 
-          {loading? (
-            <div style={{padding:80,textAlign:"center"}}>
-              <div style={{fontSize:50,animation:"bounce 1s infinite"}}>🛒</div>
-              <p style={{marginTop:16,fontWeight:700,color:"#2563eb"}}>Real Price Check Kar Rahe Hain...</p>
-              <p style={{fontSize:12,color:"#64748b",marginTop:6}}>Flipkart • Amazon se delivery charge ke saath</p>
-              <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+          {loading ? (
+            /* INTERESTING LOADING THING */
+            <div style={{padding:70,textAlign:"center"}}>
+              <div style={{fontSize:44,animation:"bounce 0.8s infinite"}}>🛒</div>
+              <div style={{display:"flex",justifyContent:"center",gap:6,marginTop:16}}>
+                <div style={{width:8,height:8,background:"#0a2540",borderRadius:10,animation:"dot 1s infinite"}}></div>
+                <div style={{width:8,height:8,background:"#2563eb",borderRadius:10,animation:"dot 1s infinite 0.2s"}}></div>
+                <div style={{width:8,height:8,background:"#0a2540",borderRadius:10,animation:"dot 1s infinite 0.4s"}}></div>
+              </div>
+              <p style={{marginTop:14,fontWeight:700,fontSize:14}}>Real Price Check Ho Raha Hai...</p>
+              <p style={{fontSize:11,color:"#64748b"}}>Flipkart • Amazon se delivery ke saath</p>
+              <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}} @keyframes dot{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
             </div>
           ) : (
             <div style={{padding:12}}>
               {sorted.map((p,i)=>(
-                <div key={i} onClick={()=>openApp(p.product_link)} style={{display:"flex",gap:12,border:i===0?"2px solid #2563eb":"1px solid #f1f5f9",borderRadius:18,padding:12,marginBottom:12,background:i===0?"#f8faff":"#fff",cursor:"pointer"}}>
-                  <img src={p.image} style={{width:70,height:70,borderRadius:12,objectFit:"cover"}}/>
+                <div key={i} style={{display:"flex",gap:12,border:i===0?"2px solid #2563eb":"1px solid #e2e8f0",borderRadius:16,padding:12,marginBottom:10,background:i===0?"#f8faff":"#fff"}}>
+                  <img src={p.image} style={{width:68,height:68,borderRadius:12,objectFit:"cover"}}/>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:14}}>{p.title.slice(0,70)}</div>
-                    <div style={{marginTop:6,fontWeight:800,fontSize:15}}>₹{p.price} <span style={{fontWeight:400,fontSize:11,color:"#64748b"}}>{p.deliveryText} = ₹{p.totalPrice} Final</span></div>
-                    {i===0 && <div style={{marginTop:4,fontSize:11,background:"#2563eb",color:"#fff",display:"inline-block",padding:"2px 8px",borderRadius:10}}>✓ CHEAPEST - {p.platform}</div>}
+                    <div style={{fontSize:13,lineHeight:"17px"}}>{p.title?.slice(0,75)}</div>
+                    <div style={{marginTop:6,fontWeight:800,fontSize:14}}>₹{p.price} <span style={{fontWeight:400,fontSize:10,color:"#64748b"}}>= ₹{p.totalPrice} Final</span></div>
+                    {i===0 && <div style={{marginTop:4,fontSize:10,background:"#2563eb",color:"#fff",display:"inline-block",padding:"3px 8px",borderRadius:10}}>WINNER - Cheapest</div>}
                   </div>
-                  <div style={{alignSelf:"center",background:"#0f172a",color:"#fff",padding:"10px 14px",borderRadius:20,fontSize:12,whiteSpace:"nowrap"}}>Go to {p.platform} ↗</div>
+                  <button onClick={()=>goToApp(p.product_link)} style={{background:"#0a2540",color:"#fff",border:"none",padding:"10px 14px",borderRadius:20,fontSize:11,height:"fit-content",alignSelf:"center"}}>Buy on {p.platform} ↗</button>
                 </div>
               ))}
             </div>
@@ -110,7 +125,13 @@ export default function Home(){
         </>
       )}
 
-      {showInstall && <div style={{position:"fixed",bottom:0,left:0,right:0,padding:14,background:"#0f172a",color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13}}>📲 Install RealDAM App</span><button onClick={handleInstall} style={{background:"#2563eb",color:"#fff",border:"none",padding:"8px 16px",borderRadius:20,fontSize:12}}>Add to Home</button></div>}
+      {/* INSTALLABLE BUTTON - BOTTOM PE FIXED */}
+      {showInstall && (
+        <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0a2540",color:"#fff",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",zIndex:100}}>
+          <span style={{fontSize:13}}>📲 RealDAM Install Karo</span>
+          <button onClick={handleInstall} style={{background:"#fff",color:"#0a2540",border:"none",padding:"8px 16px",borderRadius:20,fontWeight:700,fontSize:12}}>Add to Home Screen</button>
+        </div>
+      )}
     </div>
   )
 }
