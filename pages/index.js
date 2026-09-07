@@ -1,52 +1,201 @@
-import { useState } from "react";
-import { useRouter } from "next/router";
+import { useState, useEffect } from 'react';
 
 export default function Home() {
-  const [q, setQ] = useState("");
-  const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState(null);
+  const [secondPage, setSecondPage] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstall, setShowInstall] = useState(false);
 
-  const goSearch = (term) => {
-    const query = term || q;
-    if (!query) return;
-    router.push(`/search?q=${encodeURIComponent(query)}`);
+  // PWA Install Logic
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstall(true);
+    });
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setShowInstall(false);
+    }
   };
 
+  // 30 DAYS CACHE + 100 SEARCHES LOGIC (SAFE)
+  const getCache = () => {
+    try {
+      const cache = JSON.parse(localStorage.getItem('realdam_cache') || '{}');
+      return cache;
+    } catch { return {} }
+  };
+
+  const saveCache = (q, data) => {
+    const cache = getCache();
+    cache[q.toLowerCase()] = {
+      data: data,
+      expiry: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 din
+    };
+    localStorage.setItem('realdam_cache', JSON.stringify(cache));
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+
+    const cache = getCache();
+    const cachedItem = cache[query.toLowerCase()];
+
+    // Agar 30 din ke andar hai to API waste nahi karenge
+    if (cachedItem && cachedItem.expiry > Date.now()) {
+      setResults(cachedItem.data);
+      setSecondPage(true);
+      return;
+    }
+
+    setLoading(true);
+    setSecondPage(true);
+
+    try {
+      // Teri purani API same rahegi
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      
+      // Delivery charge add logic
+      if(data && data.products){
+        data.products = data.products.map(p => ({
+          ...p,
+          delivery: p.price > 500 ? 0 : 49,
+          finalPrice: p.price + (p.price > 500 ? 0 : 49)
+        }));
+      }
+
+      setResults(data);
+      saveCache(query, data);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Skeleton Loader (Medium - Professional)
+  const Skeleton = () => (
+    <div style={{ padding: '20px' }}>
+      {[1,2,3].map(i => (
+        <div key={i} style={{ background: '#1a1a3a', borderRadius: '12px', padding: '15px', marginBottom: '15px', animation: 'pulse 1.5s infinite' }}>
+          <div style={{ height: '20px', width: '60%', background: '#2a2a4a', borderRadius: '8px', marginBottom: '10px' }}></div>
+          <div style={{ height: '15px', width: '90%', background: '#2a2a4a', borderRadius: '8px', marginBottom: '10px' }}></div>
+          <div style={{ height: '40px', width: '100%', background: '#2a2a4a', borderRadius: '8px' }}></div>
+        </div>
+      ))}
+      <style>{`@keyframes pulse { 0% { opacity: 1 } 50% { opacity: 0.5 } 100% { opacity: 1 } }`}</style>
+    </div>
+  );
+
   return (
-    <div style={{ minHeight: '100vh', background: 'white', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ background: '#0a0a23', minHeight: '100vh', color: 'white', fontFamily: 'Poppins, sans-serif' }}>
+      
+      {/* HEADER - LOGO SIZE DIFFERENT FOR 2 PAGES */}
+      <div style={{ textAlign: 'center', padding: secondPage ? '15px 0 5px' : '40px 0 20px' }}>
+        <h1 style={{ 
+          fontSize: secondPage ? '22px' : '38px', 
+          fontWeight: '800', 
+          margin: 0,
+          transition: '0.3s all ease'
+        }}>
+          <span style={{ color: '#00ff88' }}>R</span>ealDAM
+        </h1>
+        {!secondPage && <p style={{ opacity: 0.6, marginTop: '5px' }}>Compare Prices - Find Best Deal</p>}
+      </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 16px', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ width: '44px', height: '44px', background: '#0f172a', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🛍️</div>
-          <b style={{ fontSize: '22px' }}>RealDAM</b>
+      {/* SEARCH BOX */}
+      <form onSubmit={handleSearch} style={{ padding: '0 20px', display: 'flex', gap: '10px' }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search product..."
+          style={{ flex: 1, padding: '15px', borderRadius: '25px', border: 'none', outline: 'none', background: '#1e1e3f', color: 'white' }}
+        />
+        <button type="submit" style={{ padding: '15px 25px', borderRadius: '25px', border: 'none', background: '#00ff88', fontWeight: 'bold', cursor: 'pointer' }}>
+          Search
+        </button>
+      </form>
+
+      {/* SECOND PAGE RESULTS */}
+      {secondPage && (
+        <div style={{ marginTop: '20px' }}>
+          {loading ? <Skeleton /> : (
+            results?.products?.map((item, idx) => {
+              const isWinner = idx === 0; // First one is winner
+              return (
+                <div key={idx} style={{ 
+                  margin: '15px', 
+                  background: isWinner ? '#102a1a' : '#1a1a3a', 
+                  border: isWinner ? '2px solid #00ff88' : '1px solid #2a2a4a',
+                  borderRadius: '15px', 
+                  padding: '15px',
+                  position: 'relative'
+                }}>
+                  {isWinner && (
+                    <div style={{ position: 'absolute', top: '-10px', left: '15px', background: '#00ff88', color: 'black', padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ background: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>✓</span> WINNER - {item.platform?.toUpperCase()}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '15px', marginTop: isWinner ? '10px' : '0' }}>
+                    <img src={item.image} alt="" style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover' }} />
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ fontSize: '14px', margin: '0 0 5px' }}>{item.title}</h3>
+                      <p style={{ margin: '0', fontSize: '18px', fontWeight: 'bold', color: '#00ff88' }}>₹{item.price}</p>
+                      <p style={{ margin: '2px 0', fontSize: '12px', opacity: 0.7 }}>
+                        Delivery: {item.delivery === 0 ? 'FREE' : `₹${item.delivery}`} | Total: ₹{item.finalPrice || item.price}
+                      </p>
+                      <p style={{ margin: '5px 0 0', fontSize: '12px', opacity: 0.6 }}>{item.platform}</p>
+                    </div>
+                  </div>
+
+                  {/* DIRECT STORE LINK - NOT GOOGLE */}
+                  <a 
+                    href={item.link} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{ 
+                      display: 'block', 
+                      textAlign: 'center', 
+                      marginTop: '12px', 
+                      background: isWinner ? '#00ff88' : 'white', 
+                      color: 'black', 
+                      padding: '12px', 
+                      borderRadius: '25px', 
+                      textDecoration: 'none', 
+                      fontWeight: 'bold',
+                      fontSize: '14px'
+                    }}
+                  >
+                    Go to {item.platform} Store ↗
+                  </a>
+                </div>
+              )
+            })
+          )}
+          {!loading && !results?.products && <p style={{ textAlign: 'center', opacity: 0.5, marginTop: '40px' }}>No results found</p>}
         </div>
-        <span style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', color: '#64748b' }}>TRUE Price Finder</span>
-      </div>
+      )}
 
-      <div style={{ textAlign: 'center', paddingTop: '30px' }}>
-        <div style={{ width: '110px', height: '110px', background: '#0f172a', borderRadius: '28px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', boxShadow: '0 20px 40px rgba(15,23,42,0.25)' }}>🛍️</div>
-        <h1 style={{ fontSize: '52px', fontWeight: '900', marginTop: '20px', letterSpacing: '-1px' }}>Real<span style={{ color: '#2563eb' }}>DAM</span></h1>
-        <p style={{ color: '#475569', marginTop: '10px', fontSize: '18px', lineHeight: '1.4' }}>Sabse Sasta Nahi, <b style={{ color: 'black' }}>TRUE Final Price</b><br/>Dikhate Hai</p>
-      </div>
-
-      <div style={{ padding: '36px 16px' }}>
-        <div style={{ maxWidth: '500px', margin: '0 auto', border: '1.5px solid #e2e8f0', borderRadius: '18px', padding: '6px', display: 'flex' }}>
-          <span style={{ padding: '12px 0 0 14px' }}>🔍</span>
-          <input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && goSearch()} placeholder="Product search karo - iPhone..." style={{ flex: 1, border: 'none', outline: 'none', paddingLeft: '10px', fontSize: '15px' }} />
-          <button onClick={()=>goSearch()} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '14px 24px', borderRadius: '14px', fontWeight: 'bold' }}>Search</button>
+      {/* PWA INSTALL BUTTON (Fixed Bottom) */}
+      {showInstall && (
+        <div style={{ position: 'fixed', bottom: '20px', left: '10px', right: '10px', background: '#1a1a3a', color: 'white', padding: '15px', borderRadius: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 9999, boxShadow: '0 4px 20px rgba(0,0,0,0.5)', border: '1px solid #2a2a4a' }}>
+          <span>📲 RealDAM App Install Karo</span>
+          <button onClick={handleInstall} style={{ background: '#00ff88', color: '#000', border: 'none', padding: '8px 18px', borderRadius: '20px', fontWeight: 'bold' }}>
+            Install
+          </button>
         </div>
-
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '18px', flexWrap: 'wrap', maxWidth: '500px', margin: '18px auto 0' }}>
-          {["iPhone 15","Nike Shoes","Smart Watch","Headphones"].map(t=>(
-            <button key={t} onClick={()=>goSearch(t)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '10px 18px', borderRadius: '24px', fontSize: '14px' }}>{t}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ background: '#0f172a', margin: '60px 16px 20px', padding: '22px', borderRadius: '22px', color: 'white', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto' }}>
-        <div style={{ fontSize: '26px' }}>⚡</div>
-        <div style={{ fontWeight: '800', marginTop: '8px', fontSize: '18px' }}>Instant TRUE Price</div>
-        <div style={{ color: '#94a3b8', fontSize: '14px', marginTop: '4px' }}>No extra charges, final checkout price</div>
-      </div>
+      )}
     </div>
   );
 }
