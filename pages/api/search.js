@@ -1,53 +1,57 @@
-let cache = {};
-const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+// 30 Day Cache + Trusted Filter
+let cache = globalThis._REALDAM_CACHE;
+if (!cache) {
+  cache = new Map();
+  globalThis._REALDAM_CACHE = cache;
+}
 
 export default async function handler(req, res) {
-  const q = (req.query.q || "").trim();
-  
-  if (!q) {
-    return res.json({ products: [] });
+  const q = (req.query.q || "").toLowerCase().trim();
+  if (!q) return res.json({ results: [] });
+
+  const cached = cache.get(q);
+  if (cached && Date.now() - cached.time < 30 * 24 * 60 * 60 * 1000) {
+    console.log("Cache Hit:", q);
+    return res.json({ results: cached.data, fromCache: true });
   }
 
-  // 30 DAYS CACHE - Same hai
-  if (cache[q.toLowerCase()]?.expiry > Date.now()) {
-    return res.json(cache[q.toLowerCase()].data);
-  }
+  const API_KEY = process.env.SERP_API_KEY || process.env.SERPAPI_KEY || "";
+  if (!API_KEY) return res.json({ results: [], error: "API key missing" });
 
-  // Saare Trusted Apps - Savana add kiya hai bas
-  const apps = [
-    { name: "Flipkart", link: `https://www.flipkart.com/search?q=${encodeURIComponent(q)}` },
-    { name: "Amazon.in", link: `https://www.amazon.in/s?k=${encodeURIComponent(q)}` },
-    { name: "Myntra", link: `https://www.myntra.com/${q.replace(/ /g, "-")}` },
-    { name: "Ajio", link: `https://www.ajio.com/search?text=${encodeURIComponent(q)}` },
-    { name: "Meesho", link: `https://www.meesho.com/search?q=${encodeURIComponent(q)}` },
-    { name: "Nykaa Fashion", link: `https://www.nykaa.com/search/result/?q=${encodeURIComponent(q)}` },
-    { name: "Tata Cliq", link: `https://www.tatacliq.com/search/?searchCategory=all&text=${encodeURIComponent(q)}` },
-    { name: "Savana", link: `https://www.savana.com/search?q=${encodeURIComponent(q)}` },
-  ];
+  try {
+    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&gl=in&hl=en&api_key=${API_KEY}`;
+    const r = await fetch(url);
+    const data = await r.json();
 
-  const products = apps.map(app => {
-    const price = null;
-    const delivery = null;
-    let totalPrice = null;
-    if (price !== null && delivery !== null) {
-      totalPrice = price + delivery;
-    } else if (price !== null) {
-      totalPrice = price;
+    const TRUSTED = ["amazon", "flipkart", "myntra", "ajio", "tatacliq", "nykaa", "jiomart", "croma"];
+
+    let results = (data.shopping_results || []).map((item) => ({
+      title: item.title,
+      price: item.extracted_price || 999999,
+      price_str: item.price,
+      source: item.source || "Store",
+      product_link: item.product_link,
+      thumbnail: item.thumbnail,
+      logo: item.source_icon || `https://www.google.com/s2/favicons?domain=amazon.in&sz=64`
+    })).filter(item => TRUSTED.some(t => item.source.toLowerCase().includes(t)));
+
+    if (results.length === 0) {
+      results = (data.shopping_results || []).map((item) => ({
+        title: item.title,
+        price: item.extracted_price || 999999,
+        price_str: item.price,
+        source: item.source,
+        product_link: item.product_link,
+        thumbnail: item.thumbnail,
+        logo: item.source_icon || `https://www.google.com/s2/favicons?domain=amazon.in&sz=64`
+      }));
     }
 
-    return {
-      title: `${q} - Real Products`,
-      image: `https://via.placeholder.com/300x300.png?text=${encodeURIComponent(q)}`,
-      price: price,
-      delivery: delivery,
-      totalPrice: totalPrice,
-      platform: app.name,
-      productLink: app.link,
-      isRealPrice: false,
-    };
-  });
+    results.sort((a, b) => a.price - b.price);
+    cache.set(q, { data: results, time: Date.now() });
 
-  const data = { products };
-  cache[q.toLowerCase()] = { data, expiry: Date.now() + THIRTY_DAYS };
-  return res.json(data);
+    return res.json({ results, fromCache: false });
+  } catch (e) {
+    return res.json({ results: [], error: e.message });
+  }
 }
