@@ -36,12 +36,14 @@ export default function SearchPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0E152A', fontFamily: 'system-ui', paddingBottom: '20px' }}>
+    <div style={{ minHeight: '100vh', background: '#0E152A', fontFamily: 'system-ui, sans-serif', paddingBottom: '20px' }}>
+      {/* Header */}
       <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', position: 'sticky', top: 0, background: '#0E152A', zIndex: 10 }}>
         <div style={{ width: '38px', height: '38px', background: '#131E36', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🛍️</div>
         <b style={{ fontSize: '26px', color: 'white', fontWeight: '800' }}>Real<span style={{ color: '#2F6BFF' }}>DAM</span></b>
       </div>
 
+      {/* Search Bar like screenshot */}
       <div style={{ padding: '8px 16px' }}>
         <div style={{ background: 'white', borderRadius: '14px', display: 'flex', alignItems: 'center', padding: '5px 6px' }}>
           <span style={{ paddingLeft: '12px', fontSize: '18px' }}>🔍</span>
@@ -50,38 +52,51 @@ export default function SearchPage() {
         </div>
       </div>
 
+      {/* Sort by - exact like screenshot */}
       <div style={{ padding: '10px 16px' }}>
-        <button onClick={()=>setOpenSort(!openSort)} style={{ background: 'transparent', border: '1px solid #2A3A5E', color: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
-          Sort by: {sortBy} ⌄
-        </button>
-        {openSort && (
-          <div style={{ background: 'white', borderRadius: '12px', marginTop: '8px', width: '160px', overflow: 'hidden' }}>
-            <div onClick={()=>{setSortBy('relevance'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #eee' }}>Relevance</div>
-            <div onClick={()=>{setSortBy('low'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #eee' }}>Low to High</div>
-            <div onClick={()=>{setSortBy('high'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer' }}>High to Low</div>
-          </div>
-        )}
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button onClick={()=>setOpenSort(!openSort)} style={{ background: 'transparent', border: '1px solid #2A3A5E', color: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Sort by: {sortBy === 'relevance'? 'Relevance' : sortBy === 'low'? 'Low to High' : 'High to Low'} <span style={{ fontSize: '12px' }}>⌄</span>
+          </button>
+          {openSort && (
+            <div style={{ position: 'absolute', top: '36px', left: 0, background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 20px rgba(0,0,0,0.3)', zIndex: 20, width: '160px' }}>
+              <div onClick={()=>{setSortBy('relevance'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9' }}>Relevance</div>
+              <div onClick={()=>{setSortBy('low'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9' }}>Low to High</div>
+              <div onClick={()=>{setSortBy('high'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer' }}>High to Low</div>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Results - Cards like screenshot */}
       <div style={{ padding: '8px 16px', display: 'grid', gap: '14px', maxWidth: '500px', margin: '0 auto' }}>
         {loading && [1,2,3].map(i=>(
-          <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '16px', height: '90px', opacity: 0.7 }}></div>
-        ))}
-        {sorted.map((item,i)=>(
-          <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '14px', display: 'flex', gap: '14px', alignItems: 'center' }}>
-            <img src={item.thumbnail} style={{ width: '68px', height: '68px', objectFit: 'contain' }} />
+          <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', opacity: 0.7 }}>
+            <div style={{ width: '70px', height: '70px', background: '#F1F5F9', borderRadius: '10px' }}></div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', lineHeight: '1.3' }}>{item.title?.slice(0,60)}</div>
-              <div style={{ color: '#2F6BFF', fontWeight: '900', fontSize: '18px', marginTop: '4px' }}>{item.price_str} {item.is_true_total && <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '400', textDecoration: 'line-through' }}>{item.base_price_str}</span>}</div>
-              <div style={{ marginTop: '6px', fontSize: '11px', background: item.is_true_total? '#FFF1F2' : '#F1F5F9', border: '1px solid #E2E8F0', padding: '4px 8px', borderRadius: '6px', display: 'inline-block', color: item.is_true_total? '#DC2626' : '#475569' }}>
-                {item.is_true_total? `Cheapest on ${item.source} • ${item.base_price_str} + ₹${item.delivery_cost}` : `Cheapest on ${item.source}`}
-              </div>
-              <div style={{ fontSize: '10px', color: item.is_true_total? '#DC2626' : '#16A34A', marginTop: '4px', fontWeight: '600' }}>🚚 {item.delivery} {item.is_true_total? `= Total ${item.price_str}` : ''}</div>
+              <div style={{ height: '14px', background: '#F1F5F9', borderRadius: '6px', width: '80%' }}></div>
+              <div style={{ height: '14px', background: '#F1F5F9', borderRadius: '6px', width: '30%', marginTop: '12px' }}></div>
             </div>
-            <a href={item.product_link} target="_blank" style={{ textDecoration: 'none', fontSize: '18px' }}>↗</a>
+          </div>
+        ))}
+
+        {sorted.map((item,i)=>(
+          <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <img src={item.thumbnail} style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', lineHeight: '1.3' }}>{item.title?.slice(0,50)}</div>
+              <div style={{ color: '#2F6BFF', fontWeight: '800', fontSize: '18px', marginTop: '6px' }}>{item.price_str}</div>
+              <div style={{ marginTop: '8px', fontSize: '11px', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '5px 10px', borderRadius: '8px', display: 'inline-block', color: '#475569' }}>
+                Cheapest on <b style={{ color: item.source.toLowerCase().includes('amazon')? '#FF9900' : '#2563EB' }}>{item.source}</b> {item.source.toLowerCase().includes('amazon')? '↗' : item.source.toLowerCase().includes('walmart')? '✳' : ''}
+              </div>
+              <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px' }}>🚚 {item.delivery}</div>
+            </div>
+            <a href={item.product_link} target="_blank" style={{ textDecoration: 'none', color: '#0F172A', fontSize: '18px' }}>↗</a>
           </div>
         ))}
       </div>
+
+      {!loading && results.length>0 && <p style={{ textAlign: 'center', color: '#5B6B8A', fontSize: '13px', marginTop: '20px' }}>Page 1 of {Math.ceil(results.length/10)} • {results.length} prices found</p>}
     </div>
   );
 }
