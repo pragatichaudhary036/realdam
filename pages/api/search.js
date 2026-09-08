@@ -8,12 +8,12 @@ export default async function handler(req, res) {
     return res.json({ products: [] });
   }
 
-  // 30 DAYS CACHE - Tera wala logic same hai, touch nahi kiya
+  // 30 DAYS CACHE - Same hai
   if (cache[q.toLowerCase()]?.expiry > Date.now()) {
     return res.json(cache[q.toLowerCase()].data);
   }
 
-  // Ye saare Trusted Apps hain - Ek bhi delete nahi kiya
+  // Saare Trusted Apps - Savana add kiya hai bas
   const apps = [
     { name: "Flipkart", link: `https://www.flipkart.com/search?q=${encodeURIComponent(q)}` },
     { name: "Amazon.in", link: `https://www.amazon.in/s?k=${encodeURIComponent(q)}` },
@@ -22,15 +22,12 @@ export default async function handler(req, res) {
     { name: "Meesho", link: `https://www.meesho.com/search?q=${encodeURIComponent(q)}` },
     { name: "Nykaa Fashion", link: `https://www.nykaa.com/search/result/?q=${encodeURIComponent(q)}` },
     { name: "Tata Cliq", link: `https://www.tatacliq.com/search/?searchCategory=all&text=${encodeURIComponent(q)}` },
+    { name: "Savana", link: `https://www.savana.com/search?q=${encodeURIComponent(q)}` },
   ];
 
-  // Ek hi product se sab apps ka card banega - Isliye kabhi empty nahi hoga
-  // Yaha maine Real Price ka addition logic add kiya hai
   const products = apps.map(app => {
-    const price = null; // baad me yaha real price ayega
-    const delivery = null; // baad me yaha real delivery ayega
-    
-    // Real Total Price Logic
+    const price = null;
+    const delivery = null;
     let totalPrice = null;
     if (price !== null && delivery !== null) {
       totalPrice = price + delivery;
@@ -51,9 +48,6 @@ export default async function handler(req, res) {
   });
 
   const data = { products };
-  
-  // Cache me save kar raha hai 30 din ke liye
   cache[q.toLowerCase()] = { data, expiry: Date.now() + THIRTY_DAYS };
-  
   return res.json(data);
 }
