@@ -7,7 +7,8 @@ export default function SearchPage() {
   const [input, setInput] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState("low");
+  const [sortBy, setSortBy] = useState("relevance");
+  const [openSort, setOpenSort] = useState(false);
 
   useEffect(() => {
     if (q) setInput(q);
@@ -24,7 +25,7 @@ export default function SearchPage() {
   }, [q]);
 
   const doSearch = () => {
-    if (!input) return;
+    if (!input.trim()) return;
     router.push(`/search?q=${encodeURIComponent(input)}`);
   };
 
@@ -35,55 +36,67 @@ export default function SearchPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0B1220', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Header - Theme */}
-      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0B1220', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div onClick={()=>router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-          <div style={{ width: '36px', height: '36px', background: '#111C32', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛒</div>
-          <b style={{ fontSize: '20px', color: 'white' }}>Real-<span style={{ color: '#3B82F6' }}>DAM</span></b>
-        </div>
-        <span style={{ fontSize: '11px', background: '#111C32', border: '1px solid #1E2D52', padding: '5px 10px', borderRadius: '12px', color: '#64748B' }}>TRUE Price</span>
+    <div style={{ minHeight: '100vh', background: '#0E152A', fontFamily: 'system-ui, sans-serif', paddingBottom: '20px' }}>
+      {/* Header */}
+      <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', position: 'sticky', top: 0, background: '#0E152A', zIndex: 10 }}>
+        <div style={{ width: '38px', height: '38px', background: '#131E36', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🛍️</div>
+        <b style={{ fontSize: '26px', color: 'white', fontWeight: '800' }}>Real<span style={{ color: '#2F6BFF' }}>DAM</span></b>
       </div>
 
-      {/* Search - White rounded like screenshot */}
-      <div style={{ padding: '14px 16px' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto', background: 'white', borderRadius: '14px', display: 'flex', alignItems: 'center', padding: '4px', border: '1.5px solid #E2E8F0' }}>
-          <span style={{ paddingLeft: '12px' }}>🔍</span>
-          <input value={input} onChange={(e)=>setInput(e.target.value)} onKeyDown={(e)=>e.key==='Enter' && doSearch()} placeholder="Search products, brands, prices..." style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 8px', fontSize: '14px' }} />
-          <button onClick={doSearch} style={{ background: '#2563EB', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: 'bold' }}>Go</button>
+      {/* Search Bar like screenshot */}
+      <div style={{ padding: '8px 16px' }}>
+        <div style={{ background: 'white', borderRadius: '14px', display: 'flex', alignItems: 'center', padding: '5px 6px' }}>
+          <span style={{ paddingLeft: '12px', fontSize: '18px' }}>🔍</span>
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter' && doSearch()} placeholder="Search products..." style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 8px', fontSize: '15px' }} />
+          <span style={{ paddingRight: '12px', fontSize: '18px' }}>🎙️</span>
         </div>
       </div>
 
-      {/* SORT - New */}
-      <div style={{ padding: '0 16px 10px', maxWidth: '600px', margin: '0 auto', display: 'flex', gap: '8px' }}>
-        <button onClick={()=>setSortBy('low')} style={{ background: sortBy==='low' ? '#2563EB' : '#111C32', color: sortBy==='low' ? 'white' : '#94A3B8', border: '1px solid #1E2D52', padding: '8px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Low to High ↑</button>
-        <button onClick={()=>setSortBy('high')} style={{ background: sortBy==='high' ? '#2563EB' : '#111C32', color: sortBy==='high' ? 'white' : '#94A3B8', border: '1px solid #1E2D52', padding: '8px 14px', borderRadius: '20px', fontSize: '12px' }}>High to Low ↓</button>
-        <button style={{ background: '#111C32', color: '#94A3B8', border: '1px solid #1E2D52', padding: '8px 14px', borderRadius: '20px', fontSize: '12px' }}>Discount %</button>
-      </div>
-
-      <div style={{ padding: '0 16px 20px', maxWidth: '600px', margin: '0 auto' }}>
-        {loading && (
-          <div>
-            <div style={{ background: 'white', borderRadius: '16px', padding: '20px', textAlign: 'center', marginTop: '10px' }}>
-              <div style={{ width: '48px', height: '48px', border: '4px solid #E2E8F0', borderTop: '4px solid #2563EB', borderRadius: '50%', margin: '0 auto', animation: 'spin 1s linear infinite' }}></div>
-              <p style={{ marginTop: '14px', color: '#2563EB', fontWeight: '800' }}>Finding best TRUE prices...</p>
-              <p style={{ color: '#64748B', fontSize: '12px', marginTop: '4px' }}>Checking Amazon, Flipkart, Myntra, Blinkit...</p>
+      {/* Sort by - exact like screenshot */}
+      <div style={{ padding: '10px 16px' }}>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button onClick={()=>setOpenSort(!openSort)} style={{ background: 'transparent', border: '1px solid #2A3A5E', color: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Sort by: {sortBy === 'relevance'? 'Relevance' : sortBy === 'low'? 'Low to High' : 'High to Low'} <span style={{ fontSize: '12px' }}>⌄</span>
+          </button>
+          {openSort && (
+            <div style={{ position: 'absolute', top: '36px', left: 0, background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 20px rgba(0,0,0,0.3)', zIndex: 20, width: '160px' }}>
+              <div onClick={()=>{setSortBy('relevance'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9' }}>Relevance</div>
+              <div onClick={()=>{setSortBy('low'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9' }}>Low to High</div>
+              <div onClick={()=>{setSortBy('high'); setOpenSort(false)}} style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer' }}>High to Low</div>
             </div>
-            {[1,2,3].map(i=>(
-              <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '14px', display: 'flex', gap: '14px', marginTop: '10px', opacity: 0.6 }}>
-                <div style={{ width: '60px', height: '60px', background: '#F1F5F9', borderRadius: '10px' }}></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ height: '12px', background: '#F1F5F9', borderRadius: '6px', width: '80%' }}></div>
-                  <div style={{ height: '12px', background: '#F1F5F9', borderRadius: '6px', width: '30%', marginTop: '10px' }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          )}
+        </div>
+      </div>
 
-        <div style={{ display: 'grid', gap: '12px', marginTop: '8px' }}>
-          {sorted.map((item, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: '14px', padding: '12px', display: 'flex', gap: '12px', alignItems: 'center', border: '1px solid #F1F5F9' }}>
-              <img src={item.thumbnail} style={{ width: '64px', height: '64px', objectFit: 'contain', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', lineHeight: '1.3' }}>{item.title?.slice(0,55
+      {/* Results - Cards like screenshot */}
+      <div style={{ padding: '8px 16px', display: 'grid', gap: '14px', maxWidth: '500px', margin: '0 auto' }}>
+        {loading && [1,2,3].map(i=>(
+          <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', opacity: 0.7 }}>
+            <div style={{ width: '70px', height: '70px', background: '#F1F5F9', borderRadius: '10px' }}></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: '14px', background: '#F1F5F9', borderRadius: '6px', width: '80%' }}></div>
+              <div style={{ height: '14px', background: '#F1F5F9', borderRadius: '6px', width: '30%', marginTop: '12px' }}></div>
+            </div>
+          </div>
+        ))}
+
+        {sorted.map((item,i)=>(
+          <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <img src={item.thumbnail} style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', lineHeight: '1.3' }}>{item.title?.slice(0,50)}</div>
+              <div style={{ color: '#2F6BFF', fontWeight: '800', fontSize: '18px', marginTop: '6px' }}>{item.price_str}</div>
+              <div style={{ marginTop: '8px', fontSize: '11px', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '5px 10px', borderRadius: '8px', display: 'inline-block', color: '#475569' }}>
+                Cheapest on <b style={{ color: item.source.toLowerCase().includes('amazon')? '#FF9900' : '#2563EB' }}>{item.source}</b> {item.source.toLowerCase().includes('amazon')? '↗' : item.source.toLowerCase().includes('walmart')? '✳' : ''}
+              </div>
+              <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px' }}>🚚 {item.delivery}</div>
+            </div>
+            <a href={item.product_link} target="_blank" style={{ textDecoration: 'none', color: '#0F172A', fontSize: '18px' }}>↗</a>
+          </div>
+        ))}
+      </div>
+
+      {!loading && results.length>0 && <p style={{ textAlign: 'center', color: '#5B6B8A', fontSize: '13px', marginTop: '20px' }}>Page 1 of {Math.ceil(results.length/10)} • {results.length} prices found</p>}
+    </div>
+  );
+}
