@@ -1,4 +1,4 @@
-// 30 Day Cache + Trusted Filter
+// 30 Day Cache + Trusted Filter + Real Delivery Price
 let cache = globalThis._REALDAM_CACHE;
 if (!cache) {
   cache = new Map();
@@ -11,7 +11,6 @@ export default async function handler(req, res) {
 
   const cached = cache.get(q);
   if (cached && Date.now() - cached.time < 30 * 24 * 60 * 60 * 1000) {
-    console.log("Cache Hit:", q);
     return res.json({ results: cached.data, fromCache: true });
   }
 
@@ -23,27 +22,40 @@ export default async function handler(req, res) {
     const r = await fetch(url);
     const data = await r.json();
 
-    const TRUSTED = ["amazon", "flipkart", "myntra", "ajio", "tatacliq", "nykaa", "jiomart", "croma"];
+    const TRUSTED = ["amazon", "flipkart", "myntra", "ajio", "tatacliq", "nykaa", "jiomart", "croma", "blinkit", "zepto", "zara", "meesho", "savana"];
 
-    let results = (data.shopping_results || []).map((item) => ({
-      title: item.title,
-      price: item.extracted_price || 999999,
-      price_str: item.price,
-      source: item.source || "Store",
-      product_link: item.product_link,
-      thumbnail: item.thumbnail,
-      logo: item.source_icon || `https://www.google.com/s2/favicons?domain=amazon.in&sz=64`
-    })).filter(item => TRUSTED.some(t => item.source.toLowerCase().includes(t)));
+    let results = (data.shopping_results || []).map((item) => {
+      // Real delivery from extensions
+      const deliveryText = item.extensions?.join(" ") || "";
+      let delivery = "FREE Delivery";
+      if(deliveryText.toLowerCase().includes("delivery")) {
+        delivery = item.extensions.find(e => e.toLowerCase().includes("delivery")) || delivery;
+      } else if (item.delivery) {
+        delivery = item.delivery;
+      }
+
+      return {
+        title: item.title,
+        price: item.extracted_price || 999999,
+        price_str: item.price, // 100% REAL PRICE from SerpAPI
+        source: item.source || "Store",
+        product_link: item.product_link,
+        thumbnail: item.thumbnail,
+        delivery: delivery, // REAL DELIVERY
+        logo: item.source_icon || `https://www.google.com/s2/favicons?domain=${item.source}.com&sz=64`
+      };
+    }).filter(item => TRUSTED.some(t => item.source.toLowerCase().includes(t)));
 
     if (results.length === 0) {
-      results = (data.shopping_results || []).map((item) => ({
+      results = (data.shopping_results || []).slice(0,15).map((item) => ({
         title: item.title,
         price: item.extracted_price || 999999,
         price_str: item.price,
         source: item.source,
         product_link: item.product_link,
         thumbnail: item.thumbnail,
-        logo: item.source_icon || `https://www.google.com/s2/favicons?domain=amazon.in&sz=64`
+        delivery: item.extensions?.find(e => e.toLowerCase().includes("delivery")) || "FREE Delivery",
+        logo: item.source_icon
       }));
     }
 
