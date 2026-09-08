@@ -1,48 +1,79 @@
-export default async function handler(req, res) {
-  const { q } = req.query;
-  if (!q) return res.status(200).json({ results: [] });
+let cache = globalThis.realdamCache || (globalThis.realdamCache = {});
 
-  try {
-    const apiKey = process.env.SERPAPI_KEY;
-    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&gl=in&hl=en&location=India&api_key=${apiKey}`;
+export default async function handler(req, res){
+  const { q, clear } = req.query;
 
+  if(clear === "1"){
+    globalThis.realdamCache = {};
+    return res.json({msg:"Cache cleared"});
+  }
+
+  if(!q) return res.json({results:[], products:[]});
+
+  const key = q.toLowerCase().trim();
+  const now = Date.now();
+  const THIRTY_DAYS = 30*24*60*60*1000;
+
+  // 30 Day Cache
+  if(cache[key] && cache[key].expiry > now){
+    return res.json({results: cache[key].data, products: cache[key].data, cached:true});
+  }
+
+  const apiKey = process.env.SERPAPI_KEY || process.env.SERP_API_KEY || process.env.SERP_API_KEY_2;
+  if(!apiKey) return res.json({results:[], error:"Key missing"});
+
+  try{
+    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&gl=in&hl=en&api_key=${apiKey}`;
     const r = await fetch(url);
     const data = await r.json();
-    const shopping = data.shopping_results || [];
 
-    const results = shopping.map(item => {
-      const ext = (item.extensions || []).join(" ");
-      const lower = ext.toLowerCase();
-      const base = item.extracted_price || 0;
-      let deliveryFee = 0;
+    let shopping = data.shopping_results || [];
 
-      if (lower.includes("delivery fee") || lower.includes("+")) {
-        const m = ext.match(/\+\s*₹?\s*(\d+)/);
-        if (m) deliveryFee = parseInt(m[1]);
-      } else if (lower.includes("990") && base < 990 && lower.includes("99")) {
-        deliveryFee = 99;
-      }
+    // Agar google_shopping empty hai toh direct products try karo
+    if(shopping.length === 0){
+      return res.json({results:[], products:[], raw:data, msg:"No shopping_results from SerpAPI"});
+    }
 
-      const total = deliveryFee > 0? base + deliveryFee : base;
-      return {
-        title: item.title,
-        thumbnail: item.product_photos?.[0] || item.thumbnail,
-        product_link: item.product_link,
-        source: item.source || "Store",
-        base_price: base,
-        delivery_cost: deliveryFee,
-        price: total,
-        price_str: `₹${total}`,
-        base_price_str: `₹${base}`,
-        delivery: deliveryFee > 0? `₹${deliveryFee} Delivery` : "Free delivery",
-        is_true_total: deliveryFee > 0
-      };
+    const TRUSTED = ["amazon","flipkart","myntra","ajio","tatacliq","nykaa","jiomart","croma","meesho","reliance"];
+
+    let filtered = shopping.filter(item => {
+      const src = (item.source || "").toLowerCase();
+      return TRUSTED.some(t => src.includes(t));
     });
 
-    res.setHeader('Cache-Control', 's-maxage=2592000, stale-while-revalidate=86400');
-    return res.status(200).json({ results });
-  } catch (e) {
-    console.error(e);
-    return res.status(200).json({ results: [] });
+    // IMPORTANT FIX: Agar trusted se 0 ho gaya toh saare dikhao - empty mat karo
+    let toUse = filtered.length > 0? filtered : shopping;
+
+    const products = toUse.map(item=>{
+      let truePrice = item.extracted_price || parseInt((item.price||"").replace(/[^0-9]/g,'')) || 0;
+      if(truePrice < 10) return null;
+
+      const ext = (item.extensions||[]).join(" ").toLowerCase();
+      let isFree = ext.includes("free delivery") || ext.includes("free shipping");
+      let delivery = isFree? 0 : (truePrice < 500? 40 : 0);
+
+      return {
+        title: item.title,
+        price: truePrice,
+        totalPrice: truePrice + delivery,
+        deliveryCharge: delivery,
+        isFreeDelivery: isFree,
+        image: item.thumbnail,
+        thumbnail: item.thumbnail,
+        platform: item.source,
+        source: item.source,
+        product_link: item.product_link,
+        price_str: item.price
+      };
+    }).filter(Boolean);
+
+    products.sort((a,b)=> a.totalPrice - b.totalPrice);
+
+    cache[key] = { data: products, expiry: now + THIRTY_DAYS };
+
+    return res.json({results: products, products: products, cached:false});
+
+  }catch(e){
+    return res.json({results:[], products:[], error: e.message});
   }
 }
