@@ -1,69 +1,74 @@
-// 30 Day Cache + Trusted Filter + Real Delivery Price
-let cache = globalThis._REALDAM_CACHE;
-if (!cache) {
-  cache = new Map();
-  globalThis._REALDAM_CACHE = cache;
-}
-
 export default async function handler(req, res) {
-  const q = (req.query.q || "").toLowerCase().trim();
-  if (!q) return res.json({ results: [] });
+  const { q } = req.query;
+  if (!q) return res.status(400).json({ error: "Missing query" });
 
-  const cached = cache.get(q);
-  if (cached && Date.now() - cached.time < 30 * 24 * 60 * 60 * 1000) {
-    return res.json({ results: cached.data, fromCache: true });
-  }
+  const apiKey = process.env.SERPAPI_KEY;
+  if (!apiKey) return res.status(500).json({ error: "SERPAPI_KEY missing", results: [] });
 
-  const API_KEY = process.env.SERP_API_KEY || process.env.SERPAPI_KEY || "";
-  if (!API_KEY) return res.json({ results: [], error: "API key missing" });
+  const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&location=India&gl=in&hl=en&api_key=${apiKey}`;
 
   try {
-    const url = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(q)}&gl=in&hl=en&api_key=${API_KEY}`;
     const r = await fetch(url);
     const data = await r.json();
 
-    const TRUSTED = ["amazon", "flipkart", "myntra", "ajio", "tatacliq", "nykaa", "jiomart", "croma", "blinkit", "zepto", "zara", "meesho", "savana"];
+    const results = (data.shopping_results || []).map((item) => {
+      const extText = (item.extensions || []).join(" ").toLowerCase();
+      const basePrice = item.extracted_price || 0;
 
-    let results = (data.shopping_results || []).map((item) => {
-      // Real delivery from extensions
-      const deliveryText = item.extensions?.join(" ") || "";
-      let delivery = "FREE Delivery";
-      if(deliveryText.toLowerCase().includes("delivery")) {
-        delivery = item.extensions.find(e => e.toLowerCase().includes("delivery")) || delivery;
-      } else if (item.delivery) {
-        delivery = item.delivery;
+      let deliveryCost = 0;
+      let deliveryDisplay = "Free Delivery";
+
+      const isFree = extText.includes("free delivery") || extText.includes("free shipping");
+
+      if (!isFree) {
+        // Real delivery charge nikalne ka pattern
+        // jaise: "₹40 delivery", "Delivery ₹40", "+ ₹40 shipping"
+        let match = extText.match(/₹\s?(\d+)\s*(delivery|shipping)/) ||
+                    extText.match(/(delivery|shipping)[^₹]{0,10}₹\s?(\d+)/) ||
+                    extText.match(/\+\s*₹\s?(\d+)/);
+
+        if (match) {
+          let num = parseInt(match[1] || match[2] || match[3] || "0");
+
+          // Check: agar "below ₹499" jaisa hai to ye threshold hai, charge nahi
+          // To usko 0 hi rakho
+          if (extText.includes("below") && extText.includes("delivery")) {
+            const realDeliveryLine = (item.extensions || []).find(e => e.toLowerCase().includes("₹") && e.toLowerCase().includes("delivery"));
+            deliveryDisplay = realDeliveryLine || "Delivery charges may apply";
+            deliveryCost = 0;
+          } else if (num > 0 && num < 500) { // 500 se zyada delivery nahi hota, to valid hai
+            deliveryCost = num;
+            deliveryDisplay = `₹${num} Delivery`;
+          }
+        } else {
+          deliveryDisplay = "Delivery charges may apply";
+        }
       }
+
+      const finalTotal = basePrice + deliveryCost;
 
       return {
         title: item.title,
-        price: item.extracted_price || 999999,
-        price_str: item.price, // 100% REAL PRICE from SerpAPI
-        source: item.source || "Store",
+        thumbnail: item.product_photos?.[0] || item.thumbnail,
         product_link: item.product_link,
-        thumbnail: item.thumbnail,
-        delivery: delivery, // REAL DELIVERY
-        logo: item.source_icon || `https://www.google.com/s2/favicons?domain=${item.source}.com&sz=64`
-      };
-    }).filter(item => TRUSTED.some(t => item.source.toLowerCase().includes(t)));
-
-    if (results.length === 0) {
-      results = (data.shopping_results || []).slice(0,15).map((item) => ({
-        title: item.title,
-        price: item.extracted_price || 999999,
-        price_str: item.price,
         source: item.source,
-        product_link: item.product_link,
-        thumbnail: item.thumbnail,
-        delivery: item.extensions?.find(e => e.toLowerCase().includes("delivery")) || "FREE Delivery",
-        logo: item.source_icon
-      }));
-    }
+        base_price: basePrice,
+        delivery_cost: deliveryCost,
+        price: finalTotal, // YEH HAI TRUE FINAL PRICE
+        price_str: `₹${finalTotal}`,
+        base_price_str: `₹${basePrice}`,
+        delivery: deliveryDisplay,
+        extensions: item.extensions
+      };
+    });
 
-    results.sort((a, b) => a.price - b.price);
-    cache.set(q, { data: results, time: Date.now() });
+    // 30 Days Cache - isse fast hoga aur SerpAPI ka paisa bachega
+    res.setHeader('Cache-Control', 's-maxage=2592000, stale-while-revalidate=86400');
 
-    return res.json({ results, fromCache: false });
+    return res.status(200).json({ results: results });
+
   } catch (e) {
-    return res.json({ results: [], error: e.message });
+    console.error(e);
+    return res.status(500).json({ error: "Failed", results: [] });
   }
 }
